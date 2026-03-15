@@ -1,0 +1,121 @@
+name: 'Claude Audit'
+description: 'AI-powered codebase auditor — security, quality, performance, architecture & more'
+author: 'Shehryar Sohail'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  api-key:
+    description: 'Anthropic API key for AI-powered analysis (optional — runs static analysis without it)'
+    required: false
+  path:
+    description: 'Path to the project to audit'
+    required: false
+    default: '.'
+  categories:
+    description: 'Comma-separated categories to audit (security,quality,performance,architecture,dependencies,testing,documentation)'
+    required: false
+  model:
+    description: 'Claude model to use'
+    required: false
+    default: 'claude-sonnet-4-6'
+  output:
+    description: 'Output formats (terminal,markdown,html,json)'
+    required: false
+    default: 'json,markdown'
+  max-files:
+    description: 'Maximum files to scan'
+    required: false
+    default: '500'
+  max-file-size:
+    description: 'Maximum file size in KB'
+    required: false
+    default: '100'
+  static:
+    description: 'Run static analysis only (no AI)'
+    required: false
+    default: 'false'
+  fail-on-critical:
+    description: 'Fail the action if critical issues are found'
+    required: false
+    default: 'true'
+
+outputs:
+  score:
+    description: 'Overall audit score (0-100)'
+  grade:
+    description: 'Overall grade (A/B/C/D/F)'
+  critical-count:
+    description: 'Number of critical findings'
+  high-count:
+    description: 'Number of high-severity findings'
+  total-findings:
+    description: 'Total number of findings'
+  report-json:
+    description: 'Path to JSON report file'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Run Claude Audit
+      id: audit
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+      run: |
+        ARGS="${{ inputs.path }}"
+        ARGS="$ARGS --output ${{ inputs.output }}"
+        ARGS="$ARGS --model ${{ inputs.model }}"
+        ARGS="$ARGS --max-files ${{ inputs.max-files }}"
+        ARGS="$ARGS --max-file-size ${{ inputs.max-file-size }}"
+        ARGS="$ARGS --output-dir ${{ runner.temp }}/claude-audit"
+
+        if [ "${{ inputs.categories }}" != "" ]; then
+          ARGS="$ARGS --categories ${{ inputs.categories }}"
+        fi
+
+        if [ "${{ inputs.static }}" = "true" ] || [ -z "${{ inputs.api-key }}" ]; then
+          ARGS="$ARGS --static"
+        fi
+
+        npx claude-audit@latest $ARGS --json > "${{ runner.temp }}/claude-audit/audit-report.json" 2>&1 || true
+
+        REPORT="${{ runner.temp }}/claude-audit/audit-report.json"
+        if [ -f "$REPORT" ]; then
+          SCORE=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.overallScore)")
+          GRADE=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.overallGrade)")
+          CRITICAL=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.criticalCount)")
+          HIGH=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.highCount)")
+          TOTAL=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.allFindings.length)")
+
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "grade=$GRADE" >> $GITHUB_OUTPUT
+          echo "critical-count=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high-count=$HIGH" >> $GITHUB_OUTPUT
+          echo "total-findings=$TOTAL" >> $GITHUB_OUTPUT
+          echo "report-json=$REPORT" >> $GITHUB_OUTPUT
+
+          echo "## Claude Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Score** | $SCORE/100 |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Grade** | $GRADE |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Critical** | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| **High** | $HIGH |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total Findings** | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.fail-on-critical }}" = "true" ] && [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Claude Audit found $CRITICAL critical issue(s). Failing the action."
+            exit 1
+          fi
+        else
+          echo "::warning::Claude Audit did not produce a report."
+        fi

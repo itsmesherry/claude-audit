@@ -1,6 +1,6 @@
 {
   "name": "claude-audit",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "AI-powered codebase auditor — security, quality, performance, architecture & more",
   "keywords": [
     "claude",
@@ -10,7 +10,13 @@
     "security",
     "code-quality",
     "static-analysis",
-    "cli"
+    "cli",
+    "code-review",
+    "vulnerability",
+    "codebase",
+    "lint",
+    "sast",
+    "devsecops"
   ],
   "author": "Shehryar Sohail",
   "license": "MIT",
@@ -23,9 +29,11 @@
     "claude-audit": "./bin/claude-audit.js"
   },
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "bin/",
-    "dist/",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
     "README.md",
     "LICENSE"
   ],

@@ -4,6 +4,7 @@
 
 import chalk from 'chalk';
 import boxen from 'boxen';
+import path from 'path';
 import type { AuditReport, Finding, CategoryScore, Severity, AuditCategory } from '../core/types';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -98,7 +99,7 @@ export function printReport(report: AuditReport): void {
 
   const headerContent = [
     chalk.white.bold(`  Project: ${chalk.cyan(project.name)}`),
-    chalk.white(`  Path:    ${chalk.gray(project.path)}`),
+    chalk.white(`  Path:    ${chalk.gray(path.relative(process.cwd(), project.path) || '.')}`),
     chalk.white(`  Scanned: ${chalk.cyan(project.totalFiles + ' files')} · ${chalk.cyan(project.totalLines.toLocaleString() + ' lines')}`),
     chalk.white(`  Stack:   ${chalk.cyan(Object.keys(project.languages).join(', ') || 'Unknown')}`),
     project.frameworks.length > 0

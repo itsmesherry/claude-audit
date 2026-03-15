@@ -1,23 +1,14 @@
 <div align="center">
 
-```
-   ██████╗██╗      █████╗ ██╗   ██╗██████╗ ███████╗
-  ██╔════╝██║     ██╔══██╗██║   ██║██╔══██╗██╔════╝
-  ██║     ██║     ███████║██║   ██║██║  ██║█████╗  
-  ██║     ██║     ██╔══██║██║   ██║██║  ██║██╔══╝  
-  ╚██████╗███████╗██║  ██║╚██████╔╝██████╔╝███████╗
-   ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝╚══════╝
-           ██████╗ ██╗   ██╗██████╗ ██╗████████╗
-           ██╔══██╗██║   ██║██╔══██╗██║╚══██╔══╝
-           ███████║██║   ██║██║  ██║██║   ██║   
-           ██╔══██║██║   ██║██║  ██║██║   ██║   
-           ██║  ██║╚██████╔╝██████╔╝██║   ██║   
-           ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝   ╚═╝   
-```
+# Claude Audit
 
 **AI-Powered Codebase Auditor**
 
 *One command. Complete audit. Powered by Claude.*
+
+<!-- Re-record: brew install charmbracelet/tap/vhs && vhs media/demo.tape -->
+<img src="media/demo.gif" alt="claude-audit demo" width="800" />
+
 
 [![npm version](https://img.shields.io/npm/v/claude-audit?color=06b6d4&style=flat-square)](https://www.npmjs.com/package/claude-audit)
 [![npm downloads](https://img.shields.io/npm/dm/claude-audit?color=4ade80&style=flat-square)](https://www.npmjs.com/package/claude-audit)
@@ -166,21 +157,29 @@ claude-audit --model claude-opus-4-6
 
 ### ⚙️ CI/CD Integration
 
-**GitHub Actions:**
+**GitHub Action (recommended):**
+```yaml
+- name: Claude Audit
+  uses: itsmesherry/claude-audit@v0
+  with:
+    api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # optional
+    fail-on-critical: true
+```
+
+The action outputs `score`, `grade`, `critical-count`, and `report-json` for downstream steps, and writes a summary table to your PR.
+
+**Manual npx usage:**
 ```yaml
 - name: Run Claude Audit
   run: npx claude-audit --json > audit.json
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
-- name: Fail on critical issues
-  run: npx claude-audit --static  # exits 1 if critical issues found
 ```
 
 **Pre-commit hook:**
 ```bash
 #!/bin/sh
-npx claude-audit --static --quiet --output json | \
+npx claude-audit --static --quiet --json | \
   node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.exit(r.criticalCount > 0 ? 1 : 0)"
 ```
 
@@ -271,20 +270,21 @@ SQL · Shell · YAML · Terraform · Dockerfile · Vue · Svelte · Astro
 Usage: claude-audit [options] [path]
 
 Arguments:
-  path                    Path to the project to audit (default: ".")
+  path                      Path to the project to audit (default: ".")
 
 Options:
-  -v, --version           Output version
-  -k, --api-key <key>     Anthropic API key (or set ANTHROPIC_API_KEY)
-  -o, --output <formats>  Output formats: terminal,markdown,html,json (default: "terminal,markdown,html")
-  -c, --categories <cats> Audit specific categories only
-  -m, --model <model>     Claude model (default: "claude-sonnet-4-6")
-  --max-files <n>         Max files to scan (default: 500)
-  --max-file-size <kb>    Max file size in KB (default: 100)
-  --static                 Static analysis only (no AI)
-  -q, --quiet             Suppress progress output
-  --json                  Output JSON to stdout (CI/CD mode)
-  -h, --help              Display help
+  -v, --version             Output version
+  -k, --api-key <key>       Anthropic API key (or set ANTHROPIC_API_KEY)
+  -o, --output <formats>    Output formats: terminal,markdown,html,json (default: "terminal,markdown,html")
+  -c, --categories <cats>   Audit specific categories only
+  -m, --model <model>       Claude model (default: "claude-sonnet-4-6")
+  --max-files <n>           Max files to scan (default: 500)
+  --max-file-size <kb>      Max file size in KB (default: 100)
+  --static                  Static analysis only (no AI)
+  --output-dir <dir>        Directory for report files (default: .claude-audit/)
+  -q, --quiet               Suppress progress output
+  --json                    Output JSON to stdout (CI/CD mode)
+  -h, --help                Display help
 ```
 
 ---

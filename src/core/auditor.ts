@@ -116,8 +116,11 @@ export async function runAudit(
       categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
     }
   } else {
-    if (!options.quiet && !apiKey) {
-      onProgress('ℹ No ANTHROPIC_API_KEY found — running static analysis only. Set your key for AI-powered insights.');
+    if (!options.quiet && !apiKey && !options.noAi) {
+      onProgress('⚡ Running fast static analysis (15+ built-in rules)...');
+      onProgress('💡 Tip: Set ANTHROPIC_API_KEY for deep AI-powered analysis → https://console.anthropic.com/keys');
+    } else if (!options.quiet && options.noAi) {
+      onProgress('⚡ Running static analysis (--static mode)...');
     }
     categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
   }

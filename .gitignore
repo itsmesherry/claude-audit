@@ -15,9 +15,7 @@ npm-debug.log*
 yarn-debug.log*
 
 # Generated audit reports
-audit-report.md
-audit-report.html
-audit-report.json
+.claude-audit/
 
 # OS files
 .DS_Store
@@ -28,3 +26,10 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Demo recording artifacts (local only)
+demo-helper.sh
+my-saas-app/
+
+# Blog draft (publish on Dev.to / Hashnode separately)
+blog-post.md

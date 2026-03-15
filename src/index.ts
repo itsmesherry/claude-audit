@@ -7,6 +7,7 @@ import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
 import path from 'path';
+import fs from 'fs';
 
 import { runAudit } from './core/auditor';
 import { printBanner, printReport } from './reporters/terminal';
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
     .option('--max-files <n>', 'Maximum files to scan', '500')
     .option('--max-file-size <kb>', 'Maximum file size in KB to include', '100')
     .option('--static', 'Run static analysis only (no AI)')
+    .option('--output-dir <dir>', 'Directory for report files (default: .claude-audit/)')
     .option('-q, --quiet', 'Suppress progress output', false)
     .option('--json', 'Output JSON to stdout (for CI/CD)', false)
     .addHelpText('after', `
@@ -102,25 +104,31 @@ Examples:
     }
 
     // Generate outputs
-    const absPath = options.path;
+    const reportDir = path.resolve(
+      opts['outputDir'] as string ?? path.join(options.path, '.claude-audit'),
+    );
+    const needsFileOutput = outputFormats.some(f => f !== 'terminal') && !opts['json'];
+    if (needsFileOutput) {
+      fs.mkdirSync(reportDir, { recursive: true });
+    }
 
     if (outputFormats.includes('terminal') && !opts['json']) {
       printReport(report);
     }
 
     if (outputFormats.includes('markdown')) {
-      const mdPath = path.join(absPath, 'audit-report.md');
+      const mdPath = path.join(reportDir, 'audit-report.md');
       generateMarkdownReport(report, mdPath);
       if (!opts['json'] && !options.quiet) {
-        console.log(chalk.gray(`  📄 Markdown report → ${mdPath}`));
+        console.log(chalk.gray(`  📄 Markdown report → ${path.relative(process.cwd(), mdPath)}`));
       }
     }
 
     if (outputFormats.includes('html')) {
-      const htmlPath = path.join(absPath, 'audit-report.html');
+      const htmlPath = path.join(reportDir, 'audit-report.html');
       generateHtmlReport(report, htmlPath);
       if (!opts['json'] && !options.quiet) {
-        console.log(chalk.gray(`  🌐 HTML report    → ${htmlPath}`));
+        console.log(chalk.gray(`  🌐 HTML report    → ${path.relative(process.cwd(), htmlPath)}`));
       }
     }
 
@@ -128,10 +136,10 @@ Examples:
       if (opts['json']) {
         process.stdout.write(JSON.stringify(report, null, 2) + '\n');
       } else {
-        const jsonPath = path.join(absPath, 'audit-report.json');
+        const jsonPath = path.join(reportDir, 'audit-report.json');
         generateJsonReport(report, jsonPath);
         if (!options.quiet) {
-          console.log(chalk.gray(`  📦 JSON report    → ${jsonPath}`));
+          console.log(chalk.gray(`  📦 JSON report    → ${path.relative(process.cwd(), jsonPath)}`));
         }
       }
     }
