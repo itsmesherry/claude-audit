@@ -33,8 +33,7 @@
     "build": "tsc",
     "dev": "ts-node src/index.ts",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run typecheck && npm run build",
-    "lint": "eslint src --ext .ts"
+    "prepublishOnly": "npm run typecheck && npm run build"
   },
   "engines": {
     "node": ">=18.0.0"

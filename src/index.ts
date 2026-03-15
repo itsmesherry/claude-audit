@@ -148,7 +148,7 @@ Examples:
   } catch (err) {
     spinner.fail(chalk.red('Audit failed'));
     console.error(chalk.red('\n  Error: ') + (err instanceof Error ? err.message : String(err)));
-    console.error(chalk.gray('\n  Try running with --no-ai if you don\'t have an API key.'));
+    console.error(chalk.gray('\n  Try running with --static if you don\'t have an API key.'));
     exitCode = 2;
   }
 
