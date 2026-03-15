@@ -1,0 +1,55 @@
+{
+  "name": "claude-audit",
+  "version": "1.0.0",
+  "description": "AI-powered codebase auditor — security, quality, performance, architecture & more",
+  "keywords": [
+    "claude",
+    "anthropic",
+    "ai",
+    "audit",
+    "security",
+    "code-quality",
+    "static-analysis",
+    "cli"
+  ],
+  "author": "Shehryar Sohail",
+  "license": "MIT",
+  "homepage": "https://github.com/shehryar/claude-audit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shehryar/claude-audit.git"
+  },
+  "bin": {
+    "claude-audit": "./bin/claude-audit.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src --ext .ts"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "boxen": "^7.1.1",
+    "chalk": "^4.1.2",
+    "commander": "^12.1.0",
+    "fast-glob": "^3.3.2",
+    "ignore": "^5.3.2",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
