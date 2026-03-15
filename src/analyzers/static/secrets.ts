@@ -93,7 +93,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: 'SEC-012',
     name: 'Insecure Math.random() for Security',
-    regex: /Math\.random\(\)/g,
+    regex: /(?:token|secret|password|key|salt|hash|nonce|csrf|session|auth).*Math\.random\(\)|Math\.random\(\).*(?:token|secret|password|key|salt|hash|nonce|csrf|session|auth)/gi,
     severity: 'low',
     fix: 'Use crypto.randomBytes() or crypto.randomUUID() for security-sensitive randomness.',
   },

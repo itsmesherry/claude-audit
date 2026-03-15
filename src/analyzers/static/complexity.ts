@@ -138,9 +138,9 @@ export function analyzeComplexity(files: ScannedFile[]): Finding[] {
       });
     }
 
-    // Excessive console.log — skip reporter files (intentional usage)
-    const isReporter = file.relativePath.includes('reporters/') || file.relativePath.includes('reporter.');
-    if (!isReporter && result.consoleLogCount > 5) {
+    const isCli = file.relativePath.includes('reporters/') || file.relativePath.includes('reporter.')
+      || /(?:^|\/)(?:index|main|cli|bin)\.[jt]sx?$/.test(file.relativePath);
+    if (!isCli && result.consoleLogCount > 5) {
       findings.push({
         id: `QUA-${String(++idx).padStart(3, '0')}`,
         category: 'quality',

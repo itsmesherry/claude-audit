@@ -97,19 +97,6 @@ export function analyzeDependencies(info: ProjectInfo): Finding[] {
     }
   }
 
-  // Check for missing lock file
-  if (info.packageManager === 'npm' || info.packageManager === 'yarn' || info.packageManager === 'pnpm') {
-    const lockFiles: Record<string, string> = {
-      npm: 'package-lock.json',
-      yarn: 'yarn.lock',
-      pnpm: 'pnpm-lock.yaml',
-    };
-    const expectedLock = lockFiles[info.packageManager];
-    if (expectedLock) {
-      // We don't have direct FS access here, but note in info
-    }
-  }
-
   // Flag very large number of dependencies
   const depCount = Object.keys(deps).length;
   if (depCount > 100) {

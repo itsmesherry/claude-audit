@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────
 
 import Anthropic from '@anthropic-ai/sdk';
+import { scoreToGrade } from '../../core/types';
 import type { ScannedFile, ProjectInfo, Finding, CategoryScore, AuditCategory } from '../../core/types';
 
 const MAX_CONTEXT_CHARS = 60_000;
@@ -70,43 +71,23 @@ Your job is to identify real, actionable issues across 6 dimensions with the pre
 Be specific, accurate, and brutal-but-constructive. Prioritize findings that actually matter.
 Return ONLY valid JSON — no prose, no markdown, no code fences.`;
 
-function buildAuditPrompt(info: ProjectInfo, codeContext: string): string {
+function buildAuditPrompt(info: ProjectInfo, codeContext: string, filterCategories?: AuditCategory[]): string {
   const depsStr = Object.entries(info.dependencies).slice(0, 30)
     .map(([k, v]) => `${k}@${v}`).join(', ');
+
+  const allCategories: AuditCategory[] = ['security', 'quality', 'performance', 'architecture', 'testing', 'documentation'];
+  const cats = filterCategories ?? allCategories;
+
+  const jsonShape = cats.map(cat => `  "${cat}": {
+    "score": <0-100>,
+    "summary": "<2-3 sentence executive summary>",
+    "findings": [<Finding objects>]
+  }`).join(',\n');
 
   return `Audit this codebase and return a JSON object with exactly this structure:
 
 {
-  "security": {
-    "score": <0-100>,
-    "summary": "<2-3 sentence executive summary>",
-    "findings": [<Finding objects>]
-  },
-  "quality": {
-    "score": <0-100>,
-    "summary": "<2-3 sentence executive summary>",
-    "findings": [<Finding objects>]
-  },
-  "performance": {
-    "score": <0-100>,
-    "summary": "<2-3 sentence executive summary>",
-    "findings": [<Finding objects>]
-  },
-  "architecture": {
-    "score": <0-100>,
-    "summary": "<2-3 sentence executive summary>",
-    "findings": [<Finding objects>]
-  },
-  "testing": {
-    "score": <0-100>,
-    "summary": "<2-3 sentence executive summary>",
-    "findings": [<Finding objects>]
-  },
-  "documentation": {
-    "score": <0-100>,
-    "summary": "<2-3 sentence executive summary>",
-    "findings": [<Finding objects>]
-  }
+${jsonShape}
 }
 
 Each Finding object must have:
@@ -145,11 +126,12 @@ export async function analyzeWithClaude(
   info: ProjectInfo,
   apiKey: string,
   model: string,
+  filterCategories?: AuditCategory[],
 ): Promise<CategoryScore[]> {
   const client = new Anthropic({ apiKey });
   const codeContext = buildCodeContext(files, MAX_CONTEXT_CHARS);
 
-  const prompt = buildAuditPrompt(info, codeContext);
+  const prompt = buildAuditPrompt(info, codeContext, filterCategories);
 
   let response: string;
   try {
@@ -175,7 +157,8 @@ export async function analyzeWithClaude(
     throw new Error(`Failed to parse Claude response as JSON. Raw: ${response.slice(0, 200)}`);
   }
 
-  const categoryOrder: AuditCategory[] = ['security', 'quality', 'performance', 'architecture', 'testing', 'documentation'];
+  const allCategoryOrder: AuditCategory[] = ['security', 'quality', 'performance', 'architecture', 'testing', 'documentation'];
+  const categoryOrder = filterCategories ?? allCategoryOrder;
 
   return categoryOrder.map(cat => {
     const data = parsed[cat as keyof AIAuditResponse];
@@ -210,10 +193,3 @@ export async function analyzeWithClaude(
   });
 }
 
-function scoreToGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
-  if (score >= 90) return 'A';
-  if (score >= 75) return 'B';
-  if (score >= 60) return 'C';
-  if (score >= 45) return 'D';
-  return 'F';
-}

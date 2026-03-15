@@ -152,7 +152,7 @@ claude-audit ./my-project
 ### 🔧 Highly Configurable
 ```bash
 # Static analysis only (no AI, no API key)
-claude-audit --no-ai
+claude-audit --static
 
 # Specific categories only
 claude-audit --categories security,dependencies
@@ -174,13 +174,13 @@ claude-audit --model claude-opus-4-6
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 - name: Fail on critical issues
-  run: npx claude-audit --no-ai  # exits 1 if critical issues found
+  run: npx claude-audit --static  # exits 1 if critical issues found
 ```
 
 **Pre-commit hook:**
 ```bash
 #!/bin/sh
-npx claude-audit --no-ai --quiet --output json | \
+npx claude-audit --static --quiet --output json | \
   node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.exit(r.criticalCount > 0 ? 1 : 0)"
 ```
 
@@ -281,7 +281,7 @@ Options:
   -m, --model <model>     Claude model (default: "claude-sonnet-4-6")
   --max-files <n>         Max files to scan (default: 500)
   --max-file-size <kb>    Max file size in KB (default: 100)
-  --no-ai                 Static analysis only (no AI)
+  --static                 Static analysis only (no AI)
   -q, --quiet             Suppress progress output
   --json                  Output JSON to stdout (CI/CD mode)
   -h, --help              Display help
@@ -302,7 +302,7 @@ Options:
 ## Contributing
 
 ```bash
-git clone https://github.com/shehryar/claude-audit
+git clone https://github.com/itsmesherry/claude-audit
 cd claude-audit
 npm install
 npm run dev -- ./some-project   # test against a project
@@ -315,12 +315,12 @@ Contributions welcome! Please open an issue first for major changes.
 
 ## License
 
-MIT © [Shehryar Sohail](https://github.com/shehryar)
+MIT © [Shehryar Sohail](https://github.com/itsmesherry)
 
 ---
 
 <div align="center">
 
-**Built with ❤️ using Claude AI · [Report an Issue](https://github.com/shehryar/claude-audit/issues) · [Star on GitHub ⭐](https://github.com/shehryar/claude-audit)**
+**Built with ❤️ using Claude AI · [Report an Issue](https://github.com/itsmesherry/claude-audit/issues) · [Star on GitHub ⭐](https://github.com/itsmesherry/claude-audit)**
 
 </div>

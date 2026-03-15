@@ -15,7 +15,8 @@ import { generateHtmlReport } from './reporters/html';
 import { generateJsonReport } from './reporters/json';
 import type { AuditOptions } from './core/types';
 
-const VERSION = '1.0.0';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { version: VERSION } = require('../package.json');
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -31,7 +32,7 @@ async function main(): Promise<void> {
     .option('-m, --model <model>', 'Claude model to use', 'claude-sonnet-4-6')
     .option('--max-files <n>', 'Maximum files to scan', '500')
     .option('--max-file-size <kb>', 'Maximum file size in KB to include', '100')
-    .option('--no-ai', 'Run static analysis only (no AI)', false)
+    .option('--static', 'Run static analysis only (no AI)')
     .option('-q, --quiet', 'Suppress progress output', false)
     .option('--json', 'Output JSON to stdout (for CI/CD)', false)
     .addHelpText('after', `
@@ -39,7 +40,7 @@ Examples:
   $ npx claude-audit
   $ npx claude-audit ./my-project
   $ npx claude-audit --api-key sk-ant-... -o terminal,html
-  $ npx claude-audit --no-ai --output markdown
+  $ npx claude-audit --static --output markdown
   $ npx claude-audit --json > audit.json
   $ ANTHROPIC_API_KEY=sk-ant-... npx claude-audit
     `);
@@ -58,14 +59,19 @@ Examples:
     outputFormats.push('json');
   }
 
+  const categories = opts['categories']
+    ? (opts['categories'] as string).split(',').map(c => c.trim()) as AuditOptions['categories']
+    : undefined;
+
   const options: AuditOptions = {
     path: path.resolve(projectPath),
     apiKey: opts['apiKey'] as string | undefined,
     output: outputFormats,
+    categories,
     model: (opts['model'] as string) ?? 'claude-sonnet-4-6',
     maxFiles: parseInt(opts['maxFiles'] as string) || 500,
     maxFileSize: parseInt(opts['maxFileSize'] as string) || 100,
-    noAi: !!opts['noAi'],
+    noAi: !!opts['static'],
     quiet: !!opts['quiet'],
   };
 

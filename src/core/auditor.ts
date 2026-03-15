@@ -2,6 +2,7 @@
 //  claude-audit — Main Auditor Orchestrator
 // ─────────────────────────────────────────────
 
+import { scoreToGrade } from './types';
 import type { AuditReport, CategoryScore, AuditOptions, Finding, AuditCategory } from './types';
 import { scanProject } from './scanner';
 import { analyzeSecrets } from '../analyzers/static/secrets';
@@ -9,15 +10,8 @@ import { analyzeDependencies } from '../analyzers/static/dependencies';
 import { analyzeComplexity } from '../analyzers/static/complexity';
 import { analyzeWithClaude } from '../analyzers/ai/claude-analyzer';
 
-const VERSION = '1.0.0';
-
-function scoreToGrade(score: number): AuditReport['overallGrade'] {
-  if (score >= 90) return 'A';
-  if (score >= 75) return 'B';
-  if (score >= 60) return 'C';
-  if (score >= 45) return 'D';
-  return 'F';
-}
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { version: VERSION } = require('../../package.json');
 
 function mergeStaticIntoCategories(
   categories: CategoryScore[],
@@ -29,7 +23,6 @@ function mergeStaticIntoCategories(
     const cat = categoryMap.get(finding.category);
     if (cat) {
       cat.findings.push(finding);
-      // Adjust score downward for static findings
       const penalty = finding.severity === 'critical' ? 15
         : finding.severity === 'high' ? 8
         : finding.severity === 'medium' ? 4
@@ -37,25 +30,22 @@ function mergeStaticIntoCategories(
       cat.score = Math.max(0, cat.score - penalty);
       cat.grade = scoreToGrade(cat.score);
     } else {
-      // Create category if missing
-      const existing = categoryMap.get(finding.category);
-      if (!existing) {
-        categoryMap.set(finding.category, {
-          category: finding.category,
-          score: 70,
-          grade: 'C',
-          findings: [finding],
-          summary: 'Static analysis findings.',
-        });
-      }
+      categoryMap.set(finding.category, {
+        category: finding.category,
+        score: 70,
+        grade: 'C',
+        findings: [finding],
+        summary: 'Static analysis findings.',
+      });
     }
   }
 
   return Array.from(categoryMap.values());
 }
 
-function buildStaticOnlyCategories(staticFindings: Finding[]): CategoryScore[] {
-  const categories: AuditCategory[] = ['security', 'quality', 'performance', 'architecture', 'dependencies', 'testing', 'documentation'];
+function buildStaticOnlyCategories(staticFindings: Finding[], filterCategories?: AuditCategory[]): CategoryScore[] {
+  const allCategories: AuditCategory[] = ['security', 'quality', 'performance', 'architecture', 'dependencies', 'testing', 'documentation'];
+  const categories = filterCategories ?? allCategories;
   const catFindings = new Map<AuditCategory, Finding[]>();
   categories.forEach(c => catFindings.set(c, []));
 
@@ -94,7 +84,8 @@ export async function runAudit(
   onProgress('Checking code complexity & quality...');
   const complexityFindings = analyzeComplexity(files);
 
-  const allStaticFindings = [...secretFindings, ...depFindings, ...complexityFindings];
+  const allStaticFindings = ([...secretFindings, ...depFindings, ...complexityFindings])
+    .filter(f => !options.categories || options.categories.includes(f.category));
 
   // ── 3. AI analysis ────────────────────────
   let categories: CategoryScore[];
@@ -105,7 +96,7 @@ export async function runAudit(
   if (!options.noAi && apiKey) {
     onProgress('Sending codebase to Claude for deep analysis...');
     try {
-      categories = await analyzeWithClaude(files, info, apiKey, options.model);
+      categories = await analyzeWithClaude(files, info, apiKey, options.model, options.categories);
       categories = mergeStaticIntoCategories(categories, allStaticFindings);
       aiPowered = true;
 
@@ -122,13 +113,18 @@ export async function runAudit(
       }
     } catch (err) {
       onProgress(`⚠ AI analysis failed (${err instanceof Error ? err.message : 'unknown error'}). Falling back to static analysis only.`);
-      categories = buildStaticOnlyCategories(allStaticFindings);
+      categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
     }
   } else {
     if (!options.quiet && !apiKey) {
       onProgress('ℹ No ANTHROPIC_API_KEY found — running static analysis only. Set your key for AI-powered insights.');
     }
-    categories = buildStaticOnlyCategories(allStaticFindings);
+    categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
+  }
+
+  // Filter to requested categories
+  if (options.categories) {
+    categories = categories.filter(c => options.categories!.includes(c.category));
   }
 
   // ── 4. Compute overall score ───────────────

@@ -85,3 +85,13 @@ export interface AuditOptions {
   noAi: boolean;
   quiet: boolean;
 }
+
+export type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+export function scoreToGrade(score: number): Grade {
+  if (score >= 90) return 'A';
+  if (score >= 75) return 'B';
+  if (score >= 60) return 'C';
+  if (score >= 45) return 'D';
+  return 'F';
+}

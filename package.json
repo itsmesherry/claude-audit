@@ -14,10 +14,10 @@
   ],
   "author": "Shehryar Sohail",
   "license": "MIT",
-  "homepage": "https://github.com/shehryar/claude-audit",
+  "homepage": "https://github.com/itsmesherry/claude-audit",
   "repository": {
     "type": "git",
-    "url": "https://github.com/shehryar/claude-audit.git"
+    "url": "https://github.com/itsmesherry/claude-audit.git"
   },
   "bin": {
     "claude-audit": "./bin/claude-audit.js"
@@ -32,7 +32,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "prepublishOnly": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run build",
     "lint": "eslint src --ext .ts"
   },
   "engines": {
@@ -40,7 +41,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "boxen": "^7.1.1",
+    "boxen": "^5.1.2",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
     "fast-glob": "^3.3.2",

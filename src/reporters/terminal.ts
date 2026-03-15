@@ -6,6 +6,9 @@ import chalk from 'chalk';
 import boxen from 'boxen';
 import type { AuditReport, Finding, CategoryScore, Severity, AuditCategory } from '../core/types';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { version: VERSION } = require('../../package.json');
+
 const CATEGORY_ICONS: Record<AuditCategory, string> = {
   security:      '🔒',
   quality:       '📊',
@@ -72,8 +75,8 @@ export function printBanner(): void {
     chalk.white.bold('         ██║  ██║╚██████╔╝██████╔╝██║   ██║   '),
     chalk.white.bold('         ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝   ╚═╝   '),
     '',
-    chalk.gray('     AI-Powered Codebase Auditor  ·  v1.0.0'),
-    chalk.gray('     github.com/shehryar/claude-audit'),
+    chalk.gray(`     AI-Powered Codebase Auditor  ·  v${VERSION}`),
+    chalk.gray('     github.com/itsmesherry/claude-audit'),
   ].join('\n');
 
   console.log(
