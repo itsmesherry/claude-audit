@@ -23,10 +23,10 @@
   "homepage": "https://github.com/itsmesherry/claude-audit",
   "repository": {
     "type": "git",
-    "url": "https://github.com/itsmesherry/claude-audit.git"
+    "url": "git+https://github.com/itsmesherry/claude-audit.git"
   },
   "bin": {
-    "claude-audit": "./bin/claude-audit.js"
+    "claude-audit": "bin/claude-audit.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
