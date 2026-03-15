@@ -137,10 +137,14 @@ export async function analyzeWithClaude(
   try {
     const message = await client.messages.create({
       model,
-      max_tokens: 4096,
+      max_tokens: 16384,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
     });
+
+    if (message.stop_reason === 'max_tokens') {
+      throw new Error('Response truncated — audit output exceeded token limit');
+    }
 
     response = (message.content[0] as { type: string; text: string }).text;
   } catch (err: unknown) {
