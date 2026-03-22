@@ -27,7 +27,7 @@ describe('scoreToGrade', () => {
     expect(scoreToGrade(0)).toBe('F');
   });
 
-  it('handles boundary values exactly', () => {
+  it('handles exact boundary values', () => {
     expect(scoreToGrade(89.9)).toBe('B');
     expect(scoreToGrade(90)).toBe('A');
     expect(scoreToGrade(74.9)).toBe('C');
@@ -36,5 +36,19 @@ describe('scoreToGrade', () => {
     expect(scoreToGrade(60)).toBe('C');
     expect(scoreToGrade(44.9)).toBe('F');
     expect(scoreToGrade(45)).toBe('D');
+  });
+
+  it('handles negative scores', () => {
+    expect(scoreToGrade(-1)).toBe('F');
+    expect(scoreToGrade(-100)).toBe('F');
+  });
+
+  it('handles scores above 100', () => {
+    expect(scoreToGrade(101)).toBe('A');
+    expect(scoreToGrade(999)).toBe('A');
+  });
+
+  it('handles NaN gracefully', () => {
+    expect(scoreToGrade(NaN)).toBe('F');
   });
 });
