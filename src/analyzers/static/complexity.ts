@@ -11,7 +11,7 @@ interface ComplexityResult {
   deepNesting: { line: number; depth: number }[];
   longLines: number[];
   todoCount: number;
-  consoleLogCount: number;
+  productionLeftoverCount: number;
   commentRatio: number;
   duplicateImports: string[];
 }
@@ -31,10 +31,18 @@ function analyzeFileComplexity(file: ScannedFile): ComplexityResult {
     deepNesting: [],
     longLines: [],
     todoCount: 0,
-    consoleLogCount: 0,
+    productionLeftoverCount: 0,
     commentRatio: 0,
     duplicateImports: [],
   };
+
+  const ext = getExt(file.relativePath);
+  const isJsLike = ['ts', 'tsx', 'js', 'jsx'].includes(ext);
+  const isPython = ext === 'py';
+  const isPhp = ext === 'php';
+  const jsLeftover = /(?:debugger\s*;|alert\s*\(|console\.(?:log|warn|error|debug|info|time|timeEnd)\s*\()/;
+  const pyLeftover = /\b(?:breakpoint|pdb\.set_trace)\s*\(/;
+  const phpLeftover = /\bvar_dump\s*\(/;
 
   let commentLines = 0;
   let currentFunctionName = '';
@@ -62,9 +70,11 @@ function analyzeFileComplexity(file: ScannedFile): ComplexityResult {
       result.todoCount++;
     }
 
-    // console.log
-    if (/console\.(log|warn|error|debug|info)\s*\(/.test(trimmed)) {
-      result.consoleLogCount++;
+    // Production leftovers: debug-only statements that should be removed before deployment
+    if ((isJsLike && jsLeftover.test(trimmed)) ||
+        (isPython && pyLeftover.test(trimmed)) ||
+        (isPhp && phpLeftover.test(trimmed))) {
+      result.productionLeftoverCount++;
     }
 
     // Deep nesting — count indentation via brace depth
@@ -140,15 +150,15 @@ export function analyzeComplexity(files: ScannedFile[]): Finding[] {
 
     const isCli = file.relativePath.includes('reporters/') || file.relativePath.includes('reporter.')
       || /(?:^|\/)(?:index|main|cli|bin)\.[jt]sx?$/.test(file.relativePath);
-    if (!isCli && result.consoleLogCount > 5) {
+    if (!isCli && result.productionLeftoverCount > 5) {
       findings.push({
         id: `QUA-${String(++idx).padStart(3, '0')}`,
         category: 'quality',
-        severity: 'low',
-        title: 'Excessive console.log Usage',
-        description: `${result.file} contains ${result.consoleLogCount} console.log calls. These should not reach production.`,
+        severity: 'medium',
+        title: 'Production Leftovers Detected',
+        description: `${result.file} contains ${result.productionLeftoverCount} production leftover debug statements. These are helpful for debugging but should be removed before deployment.`,
         file: result.file,
-        fix: 'Replace with a proper logger (winston, pino) and remove debug logs before shipping.',
+        fix: 'Remove remaining debug statements or replace them with proper logging before shipping.',
       });
     }
 
