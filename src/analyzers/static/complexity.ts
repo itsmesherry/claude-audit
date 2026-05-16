@@ -11,7 +11,7 @@ interface ComplexityResult {
   deepNesting: { line: number; depth: number }[];
   longLines: number[];
   todoCount: number;
-  consoleLogCount: number;
+  productionLeftoverCount: number;
   commentRatio: number;
   duplicateImports: string[];
 }
@@ -31,7 +31,7 @@ function analyzeFileComplexity(file: ScannedFile): ComplexityResult {
     deepNesting: [],
     longLines: [],
     todoCount: 0,
-    consoleLogCount: 0,
+    productionLeftoverCount: 0,
     commentRatio: 0,
     duplicateImports: [],
   };
@@ -43,28 +43,29 @@ function analyzeFileComplexity(file: ScannedFile): ComplexityResult {
   let inFunction = false;
   const importsSeen = new Set<string>();
 
+  // Pre-compute file extension and language checks
+  const ext = getExt(file.relativePath);
+  const isJsLike = ['ts', 'tsx', 'js', 'jsx'].includes(ext);
+  const isPython = ext === 'py';
+  const isPhp = ext === 'php';
+
+  // Pre-compile regexes for production leftovers
+  const jsLeftover =
+    /(?:debugger\s*;|alert\s*\(|console\.(?:log|warn|error|debug|info|time|timeEnd)\s*\()/;
+
+  const pyLeftover =
+    /\b(?:breakpoint|pdb\.set_trace)\s*\(/;
+
+  const phpLeftover =
+    /\bvar_dump\s*\(/;
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Long lines (>120 chars, ignoring comments/strings)
-    if (line.length > 120 && !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('#')) {
-      result.longLines.push(i + 1);
-    }
-
-    // Comments
-    if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+    // Comment counting
+    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed.startsWith('#')) {
       commentLines++;
-    }
-
-    // TODO / FIXME count
-    if (/\b(TODO|FIXME|HACK|XXX)\b/i.test(trimmed)) {
-      result.todoCount++;
-    }
-
-    // console.log
-    if (/console\.(log|warn|error|debug|info)\s*\(/.test(trimmed)) {
-      result.consoleLogCount++;
     }
 
     // Deep nesting — count indentation via brace depth
@@ -108,6 +109,25 @@ function analyzeFileComplexity(file: ScannedFile): ComplexityResult {
       }
       importsSeen.add(mod);
     }
+
+    // Long lines (>120 chars, ignoring comments/strings)
+    if (line.length > 120 && !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('#')) {
+      result.longLines.push(i + 1);
+    }
+
+    // TODO / FIXME count
+    if (/\b(TODO|FIXME|HACK|XXX)\b/i.test(trimmed)) {
+      result.todoCount++;
+    }
+
+    // Production leftover detection
+    if (isJsLike && jsLeftover.test(line)) {
+      result.productionLeftoverCount++;
+    } else if (isPython && pyLeftover.test(line)) {
+      result.productionLeftoverCount++;
+    } else if (isPhp && phpLeftover.test(line)) {
+      result.productionLeftoverCount++;
+    }
   }
 
   result.commentRatio = lines.length > 0 ? commentLines / lines.length : 0;
@@ -140,15 +160,15 @@ export function analyzeComplexity(files: ScannedFile[]): Finding[] {
 
     const isCli = file.relativePath.includes('reporters/') || file.relativePath.includes('reporter.')
       || /(?:^|\/)(?:index|main|cli|bin)\.[jt]sx?$/.test(file.relativePath);
-    if (!isCli && result.consoleLogCount > 5) {
+    if (!isCli && result.productionLeftoverCount > 5) {
       findings.push({
         id: `QUA-${String(++idx).padStart(3, '0')}`,
         category: 'quality',
-        severity: 'low',
-        title: 'Excessive console.log Usage',
-        description: `${result.file} contains ${result.consoleLogCount} console.log calls. These should not reach production.`,
+        severity: 'medium',
+        title: 'Production Leftovers Detected',
+        description: `${result.file} contains ${result.productionLeftoverCount} production leftover debug statements. These are helpful for debugging but should be removed before deployment.`,
         file: result.file,
-        fix: 'Replace with a proper logger (winston, pino) and remove debug logs before shipping.',
+        fix: 'Remove remaining debug statements or replace them with proper logging before shipping.',
       });
     }
 
