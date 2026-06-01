@@ -36,6 +36,14 @@ function analyzeFileComplexity(file: ScannedFile): ComplexityResult {
     duplicateImports: [],
   };
 
+  const ext = getExt(file.relativePath);
+  const isJsLike = ['ts', 'tsx', 'js', 'jsx'].includes(ext);
+  const isPython = ext === 'py';
+  const isPhp = ext === 'php';
+  const jsLeftover = /(?:debugger\s*;|alert\s*\(|console\.(?:log|warn|error|debug|info|time|timeEnd)\s*\()/;
+  const pyLeftover = /\b(?:breakpoint|pdb\.set_trace)\s*\(/;
+  const phpLeftover = /\bvar_dump\s*\(/;
+
   let commentLines = 0;
   let currentFunctionName = '';
   let functionStartLine = -1;
@@ -43,29 +51,30 @@ function analyzeFileComplexity(file: ScannedFile): ComplexityResult {
   let inFunction = false;
   const importsSeen = new Set<string>();
 
-  // Pre-compute file extension and language checks
-  const ext = getExt(file.relativePath);
-  const isJsLike = ['ts', 'tsx', 'js', 'jsx'].includes(ext);
-  const isPython = ext === 'py';
-  const isPhp = ext === 'php';
-
-  // Pre-compile regexes for production leftovers
-  const jsLeftover =
-    /(?:debugger\s*;|alert\s*\(|console\.(?:log|warn|error|debug|info|time|timeEnd)\s*\()/;
-
-  const pyLeftover =
-    /\b(?:breakpoint|pdb\.set_trace)\s*\(/;
-
-  const phpLeftover =
-    /\bvar_dump\s*\(/;
-
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Comment counting
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed.startsWith('#')) {
+    // Long lines (>120 chars, ignoring comments/strings)
+    if (line.length > 120 && !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('#')) {
+      result.longLines.push(i + 1);
+    }
+
+    // Comments
+    if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
       commentLines++;
+    }
+
+    // TODO / FIXME count
+    if (/\b(TODO|FIXME|HACK|XXX)\b/i.test(trimmed)) {
+      result.todoCount++;
+    }
+
+    // Production leftovers: debug-only statements that should be removed before deployment
+    if ((isJsLike && jsLeftover.test(trimmed)) ||
+        (isPython && pyLeftover.test(trimmed)) ||
+        (isPhp && phpLeftover.test(trimmed))) {
+      result.productionLeftoverCount++;
     }
 
     // Deep nesting — count indentation via brace depth
@@ -108,25 +117,6 @@ function analyzeFileComplexity(file: ScannedFile): ComplexityResult {
         result.duplicateImports.push(mod);
       }
       importsSeen.add(mod);
-    }
-
-    // Long lines (>120 chars, ignoring comments/strings)
-    if (line.length > 120 && !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('#')) {
-      result.longLines.push(i + 1);
-    }
-
-    // TODO / FIXME count
-    if (/\b(TODO|FIXME|HACK|XXX)\b/i.test(trimmed)) {
-      result.todoCount++;
-    }
-
-    // Production leftover detection
-    if (isJsLike && jsLeftover.test(line)) {
-      result.productionLeftoverCount++;
-    } else if (isPython && pyLeftover.test(line)) {
-      result.productionLeftoverCount++;
-    } else if (isPhp && phpLeftover.test(line)) {
-      result.productionLeftoverCount++;
     }
   }
 
