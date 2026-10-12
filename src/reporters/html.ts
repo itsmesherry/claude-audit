@@ -40,8 +40,9 @@ const CAT_ICONS: Record<AuditCategory, string> = {
   documentation: '📚',
 };
 
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function esc(s: unknown): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function scoreColor(score: number): string {
@@ -66,7 +67,7 @@ export function generateHtmlReport(report: AuditReport, outputPath: string): voi
           <strong>${esc(f.title)}</strong>
         </div>
         <p class="finding-desc">${esc(f.description)}</p>
-        ${f.file ? `<div class="finding-file">📄 <code>${esc(f.file)}${f.line ? ':' + f.line : ''}</code></div>` : ''}
+        ${f.file ? `<div class="finding-file">📄 <code>${esc(f.file)}${f.line ? ':' + esc(f.line) : ''}</code></div>` : ''}
         ${f.snippet ? `<pre class="snippet">${esc(f.snippet)}</pre>` : ''}
         ${f.fix ? `<div class="finding-fix">✅ <strong>Fix:</strong> ${esc(f.fix)}</div>` : ''}
       </div>`).join('');

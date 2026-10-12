@@ -21,3 +21,21 @@
   - Agent-trace panel when `agentTrace` is present (turns, tool usage, cache %).
   - Responsive layout (mobile-friendly).
   - Dark-mode friendly by default, matching the amber terminal theme.
+
+## 4. Static analysis accuracy
+- A project with no findings scores 80/B in `--static` mode, because the categories only AI can judge get a fixed placeholder score. Score only the categories that were analysed.
+- `eval(` and similar rules match inside strings and comments.
+- "Deep nesting" counts braces, so object literals and JSX trigger it.
+- Dotfiles such as `.env` are never scanned, which is where real secrets usually are.
+- Directories named `cache`, `target`, `out` or `env` are skipped anywhere in the tree, even when they hold source code.
+- The vulnerable-dependency list is a small hardcoded table. Use the OSV API (or `npm audit` / `pip-audit` output) instead.
+- Flag a dependency manifest with no lock file.
+
+## 5. Agent and SDK
+- Upgrade `@anthropic-ai/sdk` (currently 0.39) and re-test thinking and tool use on current models.
+- Cache the growing conversation, not only the system prompt and tool definitions, to cut cost on long audits.
+- `braces` (via `fast-glob`) has an open denial-of-service advisory with no fix yet; update when one ships.
+
+## 6. Project
+- Add ESLint to CI.
+- Remove the unused metrics in `src/analyzers/static/complexity.ts` (`longFunctions`, `longLines`, `todoCount`) or report them.

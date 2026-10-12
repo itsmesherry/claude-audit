@@ -55,6 +55,26 @@ describe('safeResolve — path sandbox', () => {
     expect(safeResolve(root, '/etc/passwd')).toBeNull();
   });
 
+  it('rejects a symlink that points outside the root', () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-audit-outside-'));
+    fs.writeFileSync(path.join(outside, 'secret.txt'), 'secret');
+    fs.symlinkSync(path.join(outside, 'secret.txt'), path.join(root, 'link.txt'));
+    fs.symlinkSync(outside, path.join(root, 'linked-dir'));
+
+    expect(safeResolve(root, 'link.txt')).toBeNull();
+    expect(safeResolve(root, 'linked-dir/secret.txt')).toBeNull();
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+
+  it('accepts a symlink that stays inside the root, and names starting with two dots', () => {
+    fs.writeFileSync(path.join(root, 'real.txt'), 'hi');
+    fs.symlinkSync(path.join(root, 'real.txt'), path.join(root, 'alias.txt'));
+    fs.writeFileSync(path.join(root, '..notes.txt'), 'hi');
+
+    expect(safeResolve(root, 'alias.txt')).toBe(path.join(root, 'alias.txt'));
+    expect(safeResolve(root, '..notes.txt')).toBe(path.join(root, '..notes.txt'));
+  });
+
   it('accepts absolute paths inside the root', () => {
     fs.writeFileSync(path.join(root, 'b.txt'), 'hi');
     expect(safeResolve(root, path.join(root, 'b.txt'))).toBe(path.join(root, 'b.txt'));

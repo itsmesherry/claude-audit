@@ -7,6 +7,7 @@ import { scoreToGrade } from '../../core/types';
 import type { ScannedFile, ProjectInfo, Finding, CategoryScore, AuditCategory, AgentTrace } from '../../core/types';
 import { runAgentLoop, buildInitialUserPrompt, type AgentLoopHooks } from './agent-loop';
 import type { ToolContext } from './tools';
+import { normalizeFindings, normalizeScore } from './normalize';
 
 const MAX_CONTEXT_CHARS = 60_000;
 const PRIORITY_EXTENSIONS = ['ts', 'js', 'py', 'go', 'rs', 'java', 'rb'];
@@ -148,7 +149,12 @@ export async function analyzeWithClaude(
       throw new Error('Response truncated — audit output exceeded token limit');
     }
 
-    response = (message.content[0] as { type: string; text: string }).text;
+    // Current models put a thinking block first, so look for the text block
+    const textBlock = message.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
+    if (!textBlock) {
+      throw new Error('Response contained no text');
+    }
+    response = textBlock.text;
   } catch (err: unknown) {
     throw new Error(`Claude API error: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -178,23 +184,13 @@ export async function analyzeWithClaude(
       };
     }
 
-    const score = Math.max(0, Math.min(100, Math.round(data.score)));
+    const score = normalizeScore(data.score, 50);
     return {
       category: cat,
       score,
       grade: scoreToGrade(score),
-      findings: (data.findings ?? []).map((f: Partial<Finding>, i: number) => ({
-        id: f.id ?? `${cat.toUpperCase().slice(0, 3)}-AI-${i + 1}`,
-        category: cat,
-        severity: f.severity ?? 'medium',
-        title: f.title ?? 'Untitled finding',
-        description: f.description ?? '',
-        file: f.file,
-        line: f.line,
-        snippet: f.snippet,
-        fix: f.fix,
-      })),
-      summary: data.summary ?? '',
+      findings: normalizeFindings(data.findings, cat, `${cat.toUpperCase().slice(0, 3)}-AI`),
+      summary: typeof data.summary === 'string' ? data.summary : '',
     };
   });
 }
@@ -219,6 +215,8 @@ export interface AgenticAnalysisOptions {
 export interface AgenticAnalysisResult {
   categories: CategoryScore[];
   trace: AgentTrace;
+  /** False when Claude never submitted an audit; categories are then placeholders. */
+  finalized: boolean;
 }
 
 export async function analyzeWithClaudeAgent(

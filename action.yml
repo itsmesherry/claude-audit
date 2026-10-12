@@ -60,62 +60,82 @@ runs:
   using: 'composite'
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
-        node-version: '20'
+        node-version: '22'
 
     - name: Run Claude Audit
       id: audit
       shell: bash
+      # Inputs are passed through the environment, never pasted into the script
       env:
         ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_CATEGORIES: ${{ inputs.categories }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_MAX_FILES: ${{ inputs.max-files }}
+        INPUT_MAX_FILE_SIZE: ${{ inputs.max-file-size }}
+        INPUT_STATIC: ${{ inputs.static }}
+        INPUT_FAIL_ON_CRITICAL: ${{ inputs.fail-on-critical }}
+        REPORT_DIR: ${{ runner.temp }}/claude-audit
       run: |
-        ARGS="${{ inputs.path }}"
-        ARGS="$ARGS --output ${{ inputs.output }}"
-        ARGS="$ARGS --model ${{ inputs.model }}"
-        ARGS="$ARGS --max-files ${{ inputs.max-files }}"
-        ARGS="$ARGS --max-file-size ${{ inputs.max-file-size }}"
-        ARGS="$ARGS --output-dir ${{ runner.temp }}/claude-audit"
+        # The outputs below are read from the JSON report, so always write one
+        case ",$INPUT_OUTPUT," in
+          *,json,*) ;;
+          *) INPUT_OUTPUT="$INPUT_OUTPUT,json" ;;
+        esac
 
-        if [ "${{ inputs.categories }}" != "" ]; then
-          ARGS="$ARGS --categories ${{ inputs.categories }}"
+        ARGS=("$INPUT_PATH" --quiet --output "$INPUT_OUTPUT" --output-dir "$REPORT_DIR"
+          --model "$INPUT_MODEL" --max-files "$INPUT_MAX_FILES" --max-file-size "$INPUT_MAX_FILE_SIZE")
+        if [ -n "$INPUT_CATEGORIES" ]; then
+          ARGS+=(--categories "$INPUT_CATEGORIES")
+        fi
+        if [ "$INPUT_STATIC" = "true" ] || [ -z "$ANTHROPIC_API_KEY" ]; then
+          ARGS+=(--static)
         fi
 
-        if [ "${{ inputs.static }}" = "true" ] || [ -z "${{ inputs.api-key }}" ]; then
-          ARGS="$ARGS --static"
+        # Exit codes: 0 = passed, 1 = critical findings, 2 = the audit itself failed
+        STATUS=0
+        npx --yes claude-audit@latest "${ARGS[@]}" || STATUS=$?
+
+        export REPORT="$REPORT_DIR/audit-report.json"
+        if [ "$STATUS" -gt 1 ] || [ ! -f "$REPORT" ]; then
+          echo "::error::Claude Audit did not produce a report (exit code $STATUS)."
+          exit 1
         fi
 
-        npx claude-audit@latest $ARGS --json > "${{ runner.temp }}/claude-audit/audit-report.json" 2>&1 || true
+        node -e '
+          const fs = require("fs");
+          const r = JSON.parse(fs.readFileSync(process.env.REPORT, "utf8"));
+          const outputs = {
+            "score": r.overallScore,
+            "grade": r.overallGrade,
+            "critical-count": r.criticalCount,
+            "high-count": r.highCount,
+            "total-findings": r.allFindings.length,
+            "report-json": process.env.REPORT,
+          };
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            Object.entries(outputs).map(([k, v]) => `${k}=${v}\n`).join(""));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            "## Claude Audit Report",
+            "",
+            "| Metric | Value |",
+            "|--------|-------|",
+            `| **Score** | ${r.overallScore}/100 |`,
+            `| **Grade** | ${r.overallGrade} |`,
+            `| **Critical** | ${r.criticalCount} |`,
+            `| **High** | ${r.highCount} |`,
+            `| **Total Findings** | ${r.allFindings.length} |`,
+            `| **Mode** | ${r.aiPowered ? "AI" : "Static analysis only"} |`,
+            "",
+            ...(r.warnings || []).map(w => `> ⚠️ ${w}`),
+            "",
+          ].join("\n"));
+        '
 
-        REPORT="${{ runner.temp }}/claude-audit/audit-report.json"
-        if [ -f "$REPORT" ]; then
-          SCORE=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.overallScore)")
-          GRADE=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.overallGrade)")
-          CRITICAL=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.criticalCount)")
-          HIGH=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.highCount)")
-          TOTAL=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT','utf8')); console.log(r.allFindings.length)")
-
-          echo "score=$SCORE" >> $GITHUB_OUTPUT
-          echo "grade=$GRADE" >> $GITHUB_OUTPUT
-          echo "critical-count=$CRITICAL" >> $GITHUB_OUTPUT
-          echo "high-count=$HIGH" >> $GITHUB_OUTPUT
-          echo "total-findings=$TOTAL" >> $GITHUB_OUTPUT
-          echo "report-json=$REPORT" >> $GITHUB_OUTPUT
-
-          echo "## Claude Audit Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Score** | $SCORE/100 |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Grade** | $GRADE |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Critical** | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
-          echo "| **High** | $HIGH |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Total Findings** | $TOTAL |" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${{ inputs.fail-on-critical }}" = "true" ] && [ "$CRITICAL" -gt 0 ]; then
-            echo "::error::Claude Audit found $CRITICAL critical issue(s). Failing the action."
-            exit 1
-          fi
-        else
-          echo "::warning::Claude Audit did not produce a report."
+        if [ "$INPUT_FAIL_ON_CRITICAL" = "true" ] && [ "$STATUS" -eq 1 ]; then
+          echo "::error::Claude Audit found critical issues. Failing the action."
+          exit 1
         fi

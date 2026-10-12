@@ -36,6 +36,7 @@ import {
   type ToolName,
   type FinalAuditPayload,
 } from './tools';
+import { normalizeFindings, normalizeScore } from './normalize';
 
 // ── Tuning constants ─────────────────────────────
 const REPETITION_WINDOW = 6;       // look at last 6 tool calls
@@ -121,6 +122,8 @@ export interface AgentLoopOptions {
 export interface AgentLoopResult {
   categories: CategoryScore[];
   trace: AgentTrace;
+  /** False when the loop ended without finalize_audit; categories are then placeholders. */
+  finalized: boolean;
 }
 
 // ── Input → project context ──────────────────────
@@ -251,8 +254,9 @@ export async function runAgentLoop(
       cacheReadTokens += uExtra.cache_read_input_tokens ?? 0;
       cacheCreationTokens += uExtra.cache_creation_input_tokens ?? 0;
 
-      // Hard budget ceiling — stop before next call if we're over
-      const totalTokens = inputTokens + outputTokens;
+      // Hard budget ceiling — stop before next call if we're over. Cached
+      // tokens are reported separately from input_tokens, so count them too.
+      const totalTokens = inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens;
       if (totalTokens > opts.maxBudgetTokens) {
         stopReason = 'max_budget';
         stopDetail = `Token budget exceeded: ${totalTokens} > ${opts.maxBudgetTokens}`;
@@ -407,7 +411,7 @@ export async function runAgentLoop(
       // than keeps exploring. Client-side analogue of the task-budgets beta —
       // a soft signal the model uses to pace itself.
       const turnProgress = turn / opts.maxTurns;
-      const tokenProgress = (inputTokens + outputTokens) / opts.maxBudgetTokens;
+      const tokenProgress = (inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens) / opts.maxBudgetTokens;
       const turnContent: (Anthropic.ToolResultBlockParam | Anthropic.TextBlockParam)[] = [...toolResults];
       if (turnProgress >= 0.7 || tokenProgress >= 0.7) {
         const remainingTurns = opts.maxTurns - turn;
@@ -471,7 +475,7 @@ export async function runAgentLoop(
   };
 
   const categories = buildCategoriesFromFinal(finalPayload, opts.filterCategories);
-  return { categories, trace: agentTrace };
+  return { categories, trace: agentTrace, finalized: finalPayload !== null };
 }
 
 // ── Finalization → CategoryScore[] ───────────────
@@ -506,25 +510,15 @@ function buildCategoriesFromFinal(
       };
     }
 
-    const score = Math.max(0, Math.min(100, Math.round(data.score)));
-    const findings: Finding[] = (data.findings ?? []).map((f, i) => ({
-      id: f.id ?? `${cat.toUpperCase().slice(0, 3)}-AGENT-${i + 1}`,
-      category: cat,
-      severity: f.severity ?? 'medium',
-      title: f.title ?? 'Untitled finding',
-      description: f.description ?? '',
-      file: f.file,
-      line: f.line,
-      snippet: f.snippet,
-      fix: f.fix,
-    }));
+    const score = normalizeScore(data.score, 50);
+    const findings = normalizeFindings(data.findings, cat, `${cat.toUpperCase().slice(0, 3)}-AGENT`);
 
     return {
       category: cat,
       score,
       grade: scoreToGrade(score),
       findings,
-      summary: data.summary ?? '',
+      summary: typeof data.summary === 'string' ? data.summary : '',
     };
   });
 }

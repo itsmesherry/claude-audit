@@ -20,6 +20,9 @@ import type { AuditOptions } from './core/types';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require('../package.json');
 
+const VALID_OUTPUTS: string[] = ['terminal', 'markdown', 'html', 'json'];
+const VALID_CATEGORIES: string[] = ['security', 'quality', 'performance', 'architecture', 'dependencies', 'testing', 'documentation'];
+
 async function main(): Promise<void> {
   const program = new Command();
 
@@ -72,6 +75,16 @@ Examples:
   const categories = opts['categories']
     ? (opts['categories'] as string).split(',').map(c => c.trim()) as AuditOptions['categories']
     : undefined;
+
+  // A typo here would otherwise produce an empty report that passes CI
+  const unknownOutputs = outputFormats.filter(f => !VALID_OUTPUTS.includes(f));
+  if (unknownOutputs.length > 0) {
+    program.error(`error: unknown output format '${unknownOutputs.join(', ')}'. Valid: ${VALID_OUTPUTS.join(', ')}`, { exitCode: 2 });
+  }
+  const unknownCategories = (categories ?? []).filter(c => !VALID_CATEGORIES.includes(c));
+  if (unknownCategories.length > 0) {
+    program.error(`error: unknown category '${unknownCategories.join(', ')}'. Valid: ${VALID_CATEGORIES.join(', ')}`, { exitCode: 2 });
+  }
 
   const resolvedApiKey = (opts['apiKey'] as string | undefined) ?? process.env['ANTHROPIC_API_KEY'];
   // Agentic is the default when an API key is available and --fast wasn't set.
@@ -162,6 +175,12 @@ Examples:
       }
     }
 
+    // Warnings go to stderr in every mode, so they reach CI logs without
+    // corrupting --json output on stdout
+    for (const warning of report.warnings ?? []) {
+      console.error(chalk.yellow(`  ⚠ ${warning}`));
+    }
+
     // Generate outputs
     const reportDir = path.resolve(
       opts['outputDir'] as string ?? path.join(options.path, '.claude-audit'),
@@ -234,7 +253,9 @@ Examples:
     exitCode = 2;
   }
 
-  process.exit(exitCode);
+  // Let stdout drain before exiting: exiting straight away cuts piped JSON
+  // off at the pipe buffer size (64 KB)
+  process.stdout.write('', () => process.exit(exitCode));
 }
 
 main().catch(err => {
