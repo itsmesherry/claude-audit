@@ -156,35 +156,12 @@ export async function runAudit(
         warnings.push(`The AI audit failed (${err instanceof Error ? err.message : 'unknown error'}). This report contains static analysis only.`);
         categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
       }
-
-      if (depFindings.length > 0 && !categories.find(c => c.category === 'dependencies')) {
-        const depScore = Math.max(0, 80 - depFindings.length * 8);
-        categories.push({
-          category: 'dependencies',
-          score: depScore,
-          grade: scoreToGrade(depScore),
-          findings: depFindings,
-          summary: `${depFindings.length} dependency issue(s) found.`,
-        });
-      }
     } else {
       onProgress('Sending codebase to Claude for one-shot analysis...');
       try {
         categories = await analyzeWithClaude(files, info, apiKey, options.model, options.categories);
         categories = mergeStaticIntoCategories(categories, allStaticFindings);
         aiPowered = true;
-
-        // Ensure dependencies category exists if we have dep findings
-        if (depFindings.length > 0 && !categories.find(c => c.category === 'dependencies')) {
-          const depScore = Math.max(0, 80 - depFindings.length * 8);
-          categories.push({
-            category: 'dependencies',
-            score: depScore,
-            grade: scoreToGrade(depScore),
-            findings: depFindings,
-            summary: `${depFindings.length} dependency issue(s) found.`,
-          });
-        }
       } catch (err) {
         warnings.push(`The AI audit failed (${err instanceof Error ? err.message : 'unknown error'}). This report contains static analysis only.`);
         categories = buildStaticOnlyCategories(allStaticFindings, options.categories);

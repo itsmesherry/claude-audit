@@ -45,16 +45,22 @@ inputs:
 outputs:
   score:
     description: 'Overall audit score (0-100)'
+    value: ${{ steps.audit.outputs.score }}
   grade:
     description: 'Overall grade (A/B/C/D/F)'
+    value: ${{ steps.audit.outputs.grade }}
   critical-count:
     description: 'Number of critical findings'
+    value: ${{ steps.audit.outputs.critical-count }}
   high-count:
     description: 'Number of high-severity findings'
+    value: ${{ steps.audit.outputs.high-count }}
   total-findings:
     description: 'Total number of findings'
+    value: ${{ steps.audit.outputs.total-findings }}
   report-json:
     description: 'Path to JSON report file'
+    value: ${{ steps.audit.outputs.report-json }}
 
 runs:
   using: 'composite'
