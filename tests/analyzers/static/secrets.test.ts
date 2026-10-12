@@ -227,6 +227,9 @@ describe('analyzeSecrets', () => {
       ['an unquoted AWS key', 'aws_key = AKIAIOSFODNN7EXAMPLE', 'IOSFODNN7EXAMPLE'],
       ['a connection-string password', 'const url = "postgres://admin:S3cr3tDbPass@db:5432/app";', 'S3cr3tDbPass'],
       ['an unquoted GitHub token', `token: ghp_${'a'.repeat(36)}`, 'a'.repeat(36)],
+      ['a password on a line another rule also matches', 'eval(x); const password = "p@ss w0rd!!x";', 'p@ss'],
+      ['an AWS key glued to other text', 'key=fooAKIAIOSFODNN7EXAMPLE', 'IOSFODNN7EXAMPLE'],
+      ['a connection-string password containing @', 'DATABASE_URL=postgres://admin:p@ssw0rdTail@db:5432/app', 'ssw0rdTail'],
     ])('never puts %s in a snippet', (_name, line, secret) => {
       const findings = analyzeSecrets([makeFile('src/config.ts', line)]);
       expect(findings.length).toBeGreaterThanOrEqual(1);

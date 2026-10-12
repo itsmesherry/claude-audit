@@ -12,9 +12,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Secrets are now masked in every report. Before, a detected password, AWS key,
   GitHub token or database URL was often printed in full in the terminal,
   Markdown, HTML and JSON reports, and sent to Claude with the static findings.
-- The agent's file tools no longer follow symlinks that point outside the
-  project, so a repository being audited cannot make the agent read other files
-  on the machine.
+- The agent's file tools no longer follow symlinks or `..` glob patterns out of
+  the project, so a repository being audited cannot make the agent read other
+  files on the machine.
+- Credentials the model quotes in its own findings are masked too.
 - The HTML report escapes every value that comes from the model.
 - The GitHub Action no longer pastes its inputs into a shell script.
 
@@ -30,7 +31,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `--fast` crashed on replies that start with a thinking block (newer models).
 - Scores, severities and line numbers from the model are validated, so one
   malformed value can no longer produce `NaN` scores or broken reports.
-- The token budget (`--max-budget`) now counts cached tokens too.
+- The token budget (`--max-budget`) now counts cached tokens too. An audit that
+  ran close to the limit before may need a higher `--max-budget`.
 - The GitHub Action never produced a report: it wrote to a directory that did
   not exist. It now works, fails when the audit fails, and its summary says
   whether the run was AI or static only.

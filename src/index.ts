@@ -40,7 +40,7 @@ async function main(): Promise<void> {
     .option('--static', 'Run static analysis only (no AI)')
     .option('--fast', 'Use one-shot AI mode (no agentic loop). Faster & cheaper but shallower.', false)
     .option('--max-turns <n>', 'Max tool-use iterations for agentic mode', '25')
-    .option('--max-budget <tokens>', 'Hard ceiling on total tokens (input+output) per agentic audit', '500000')
+    .option('--max-budget <tokens>', 'Hard ceiling on total tokens (input+output, cached included) per agentic audit', '500000')
     .option('--no-trace', 'Do not write agent-trace.jsonl (trace is on by default in agentic mode)')
     .option('-V, --verbose', 'Show per-turn token spend, tool durations, and result previews', false)
     .option('--output-dir <dir>', 'Directory for report files (default: .claude-audit/)')

@@ -137,17 +137,28 @@ const SKIP_EXTENSIONS = new Set([
 ]);
 
 /**
- * Hide credentials before a line goes into a report. Reports are written to
+ * Hide credentials before text goes into a report. Reports are written to
  * disk, printed in CI logs and sent to the model, so they must never carry
- * the secret that was found.
+ * the secret that was found. maskTokens is safe on any text; maskLine also
+ * hides string literals and is for source lines.
  */
-function maskLine(line: string, isSecret: boolean): string {
-  const stars = (m: string): string => `"${'*'.repeat(Math.min(m.length - 2, 12))}"`;
-  const masked = line
-    // user:password@ in connection strings
-    .replace(/:\/\/([^:/\s"'`]+):[^@\s"'`]+@/g, '://$1:****@')
+export function maskTokens(text: string): string {
+  return text
+    // user:password@ in connection strings (greedy: a password may contain @)
+    .replace(/:\/\/([^:/\s"'`]+):[^\s"'`]+@/g, '://$1:****@')
     // provider tokens, quoted or not
-    .replace(/\b(AKIA|ghp_|ghs_|github_pat_|sk-ant-|sk-)[A-Za-z0-9_-]{8,}/g, '$1****');
+    .replace(/(AKIA|ghp_|ghs_|github_pat_|\bsk-ant-|\bsk-)[A-Za-z0-9_-]{8,}/g, '$1****');
+}
+
+function maskLine(line: string): string {
+  const stars = (m: string): string => `"${'*'.repeat(Math.min(m.length - 2, 12))}"`;
+  const masked = maskTokens(line);
+  // Decided per line, not per rule: a line can match a credential rule and
+  // another rule (eval, SQL), and both findings show the same line
+  const isSecret = SECRET_PATTERNS.some(p => {
+    p.regex.lastIndex = 0;
+    return !!p.secret && p.regex.test(line);
+  });
   return isSecret
     ? masked.replace(/(["'`])(?:(?!\1).){8,}\1/g, stars)
     : masked.replace(/["'][A-Za-z0-9_\-./+]{8,}["']/g, stars);
@@ -180,7 +191,7 @@ export function analyzeSecrets(files: ScannedFile[]): Finding[] {
         pattern.regex.lastIndex = 0;
 
         if (pattern.regex.test(line)) {
-          const maskedLine = maskLine(line, !!pattern.secret);
+          const maskedLine = maskLine(line);
 
           findings.push({
             id: `${pattern.id}-${findings.length}`,

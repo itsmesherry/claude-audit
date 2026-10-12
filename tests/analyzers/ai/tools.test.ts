@@ -209,6 +209,22 @@ describe('TOOL_EXECUTORS', () => {
       expect(res.content).not.toContain('lib/b.ts');
     });
 
+    it('does not search or list files outside the project through a glob', async () => {
+      const outside = path.join(path.dirname(root), `${path.basename(root)}-outside.txt`);
+      fs.writeFileSync(outside, 'TOPSECRET');
+      fs.writeFileSync(path.join(root, 'in.txt'), 'TOPSECRET');
+      const ctx = makeCtx(root);
+
+      const search = await TOOL_EXECUTORS.search_code(ctx, { pattern: 'TOPSECRET', file_pattern: '../*.txt' });
+      const list = await TOOL_EXECUTORS.list_files(ctx, { pattern: '../*.txt' });
+      const inside = await TOOL_EXECUTORS.search_code(ctx, { pattern: 'TOPSECRET' });
+      fs.rmSync(outside);
+
+      expect(search.content).not.toContain('outside');
+      expect(list.content).not.toContain('outside');
+      expect(inside.content).toContain('in.txt:1');
+    });
+
     it('returns error for invalid regex', async () => {
       const ctx = makeCtx(root);
       const res = await TOOL_EXECUTORS.search_code(ctx, { pattern: '[unclosed', regex: true });

@@ -6,6 +6,7 @@
 // hostile repository can steer it. Only well-typed fields get into a report.
 
 import type { Finding, AuditCategory, Severity } from '../../core/types';
+import { maskTokens } from '../static/secrets';
 
 const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'info'];
 
@@ -16,15 +17,17 @@ export function normalizeScore(score: unknown, fallback: number): number {
     : fallback;
 }
 
+// The model may quote a credential it read in the project
 function text(value: unknown): string | undefined {
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
+  return typeof value === 'string' && value.length > 0 ? maskTokens(value) : undefined;
 }
 
 /** Keep the well-typed fields of a finding and default the rest. */
 export function normalizeFinding(raw: unknown, category: AuditCategory, fallbackId: string): Finding {
   const f = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const severity = String(f['severity'] ?? '').toLowerCase() as Severity;
-  const line = f['line'];
+  // Models sometimes send the line number as a string
+  const line = typeof f['line'] === 'string' && /^\d+$/.test(f['line']) ? Number(f['line']) : f['line'];
 
   return {
     id: text(f['id']) ?? fallbackId,

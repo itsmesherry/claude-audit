@@ -112,14 +112,15 @@ async function execListFiles(
     : 100;
 
   try {
-    const matches = await fg(pattern, {
+    // A glob may contain "..", so results go through the sandbox too
+    const matches = (await fg(pattern, {
       cwd: ctx.projectRoot,
       onlyFiles: true,
       dot: false,
       followSymbolicLinks: false,
       ignore: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**',
                '**/.next/**', '**/coverage/**', '**/__pycache__/**', '**/.venv/**'],
-    });
+    })).filter(rel => safeResolve(ctx.projectRoot, rel) !== null);
 
     const sliced = matches.slice(0, maxResults);
     const rows = sliced.map(rel => {
@@ -219,7 +220,9 @@ async function execSearchCode(
 
     for (const rel of files) {
       if (matches.length >= maxMatches) break;
-      const abs = path.join(ctx.projectRoot, rel);
+      // A glob may contain "..", so results go through the sandbox too
+      const abs = safeResolve(ctx.projectRoot, rel);
+      if (!abs) continue;
       let stat: fs.Stats;
       try { stat = fs.statSync(abs); } catch { continue; }
       if (!stat.isFile() || stat.size > MAX_FILE_READ_BYTES) continue;

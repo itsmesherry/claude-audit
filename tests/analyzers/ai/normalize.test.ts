@@ -23,6 +23,7 @@ describe('normalizeFinding', () => {
 
   it('drops a line that is not a positive integer', () => {
     expect(normalizeFinding({ line: 12 }, 'quality', 'X-1').line).toBe(12);
+    expect(normalizeFinding({ line: '12' }, 'quality', 'X-1').line).toBe(12);
     expect(normalizeFinding({ line: '<img src=x onerror=alert(1)>' }, 'quality', 'X-1').line).toBeUndefined();
     expect(normalizeFinding({ line: 0 }, 'quality', 'X-1').line).toBeUndefined();
   });
@@ -30,6 +31,15 @@ describe('normalizeFinding', () => {
   it('forces the category and fills in missing text fields', () => {
     const finding = normalizeFinding({ category: 'security', title: 42 }, 'testing', 'TES-AI-1');
     expect(finding).toMatchObject({ id: 'TES-AI-1', category: 'testing', title: 'Untitled finding', description: '' });
+  });
+
+  it('masks credentials the model quotes', () => {
+    const finding = normalizeFinding(
+      { snippet: 'const k = "AKIAIOSFODNN7EXAMPLE"', description: 'Uses postgres://admin:hunter2@db/app' },
+      'security', 'X-1',
+    );
+    expect(finding.snippet).not.toContain('IOSFODNN7EXAMPLE');
+    expect(finding.description).toBe('Uses postgres://admin:****@db/app');
   });
 
   it('survives input that is not an object', () => {
