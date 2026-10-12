@@ -32,7 +32,7 @@ It combines **static analysis** (fast, no API key needed), **one-shot AI review*
 | 📊 **Code Quality** | Complexity, duplication, naming, dead code, anti-patterns |
 | ⚡ **Performance** | N+1 queries, memory leaks, inefficient algorithms, blocking I/O |
 | 🏗️ **Architecture** | Modularity, separation of concerns, coupling, scalability |
-| 📦 **Dependencies** | Known CVEs, deprecated packages, bloat, supply chain risks |
+| 📦 **Dependencies** | Known-vulnerable and deprecated packages, bloat, supply chain risks |
 | 🧪 **Testing** | Coverage gaps, missing tests, test quality, flaky patterns |
 | 📚 **Documentation** | Missing docs, stale comments, API documentation gaps |
 
@@ -59,7 +59,7 @@ npx claude-audit --max-turns 40 --max-budget 1000000
 # Output to HTML + Markdown reports
 npx claude-audit --output terminal,html,markdown
 
-# CI/CD mode — JSON output, exits 1 on critical issues
+# CI/CD mode — JSON on stdout, exits 1 on critical issues
 npx claude-audit --json
 ```
 
@@ -137,7 +137,7 @@ claude-audit ./my-project
 ### 🤖 Three Analysis Modes
 | Mode | Flag | When to use |
 |------|------|-------------|
-| **Static** | `--static` | No API key, offline, CI pre-checks. Regex + AST rules. |
+| **Static** | `--static` | No API key, offline, CI pre-checks. Pattern-based rules. |
 | **One-shot AI** | `--fast` | Cheap & fast Claude review of a files digest. |
 | **Agentic** *(default when `ANTHROPIC_API_KEY` is set)* | *(default)* | Claude actively investigates via tools — reads files, runs searches, verifies every finding with evidence. Deepest signal, highest accuracy. |
 
@@ -154,7 +154,7 @@ When an API key is available, Claude Audit runs a **manual agentic loop**: Claud
 - `finalize_audit` — structured submission of findings
 
 **Production guardrails (all enabled by default):**
-- 🛡️ **Path sandboxing** — every file access is resolved against the project root; traversal (`..`), absolute-path escape, and null-byte smuggling are rejected
+- 🛡️ **Path sandboxing** — every file access is resolved against the project root; traversal (`..`), absolute-path escape, symlinks that point outside the project, and null-byte smuggling are rejected
 - 🔒 **Read-only by construction** — no tool can write, spawn shells, or hit the network
 - 🔁 **Repetition circuit breaker** — same tool call 3× in the last 6 calls aborts the loop before it wastes budget
 - 🎯 **Iteration cap** — hard ceiling of 25 tool-use turns (configurable via `--max-turns`)
@@ -217,7 +217,7 @@ claude-audit --model claude-opus-4-6
     fail-on-critical: true
 ```
 
-The action outputs `score`, `grade`, `critical-count`, and `report-json` for downstream steps, and writes a summary table to your PR.
+The action outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings` and `report-json` for downstream steps, and writes a summary table to the workflow run. Without an `api-key` it runs static analysis only. `@v0` follows the latest 0.x release; pin a full version such as `@v0.3.0` if you prefer.
 
 **Manual npx usage:**
 ```yaml
@@ -250,10 +250,9 @@ npx claude-audit --static --quiet --json | \
 - Database connection strings with credentials
 
 ### 📦 Dependencies
-- Packages with known CVEs (lodash, axios, minimist, etc.)
+- Packages with known CVEs, from a small built-in list (lodash, axios, minimist, etc.)
 - Deprecated/unmaintained packages (moment, request)
 - Excessive dependency count
-- Missing lock files
 
 ### 📊 Code Quality
 - Files > 500 lines (consider splitting)
@@ -281,7 +280,7 @@ Your Codebase
      ▼
 ┌─────────────────────────────────┐
 │       Static Analyzers          │
-│  • Secret detection (20+ rules) │
+│  • Secret detection (15 rules)  │
 │  • Dependency vulnerability DB  │
 │  • Complexity & quality checks  │
 └─────────────────────────────────┘
@@ -375,8 +374,10 @@ Options:
 | Code | Meaning |
 |------|---------|
 | `0` | Audit passed — no critical issues |
-| `1` | Critical security issues found |
-| `2` | Audit failed (error) |
+| `1` | At least one critical finding |
+| `2` | Audit failed (error), or an unknown `--output` / `--categories` value |
+
+If the AI step fails or runs out of budget before finishing, the report falls back to static analysis only: `aiPowered` is `false`, the reason is listed in `warnings` in the JSON report, and a warning is printed to stderr. Secrets found in your code are masked in every report.
 
 ---
 
@@ -390,7 +391,7 @@ npm run dev -- ./some-project   # test against a project
 npm run build                   # compile TypeScript
 ```
 
-Contributions welcome! Please open an issue first for major changes.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, [TODO.md](TODO.md) for known gaps, and [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 ---
 

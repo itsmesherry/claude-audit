@@ -168,4 +168,18 @@ describe('CLI', () => {
       expect(stderr).toContain('--static');
     });
   });
+
+  describe('input validation', () => {
+    it('rejects an unknown category instead of producing an empty report', () => {
+      const { stderr, exitCode } = run(['--static', '--json', '--categories', 'securty']);
+      expect(exitCode).toBe(2);
+      expect(stderr).toContain("unknown category 'securty'");
+    });
+
+    it('rejects an unknown output format', () => {
+      const { stderr, exitCode } = run(['--static', '--quiet', '--output', 'pdf']);
+      expect(exitCode).toBe(2);
+      expect(stderr).toContain("unknown output format 'pdf'");
+    });
+  });
 });

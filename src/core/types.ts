@@ -40,6 +40,8 @@ export interface ProjectInfo {
   languages: Record<string, number>;   // lang → file count
   frameworks: string[];
   totalFiles: number;
+  /** Files left unscanned because the project has more than --max-files. */
+  filesOverLimit?: number;
   totalLines: number;
   hasTests: boolean;
   hasDependencyFile: boolean;
@@ -111,6 +113,8 @@ export interface AuditReport {
   aiPowered: boolean;
   agentic?: boolean;       // true when agentic loop was used
   agentTrace?: AgentTrace; // present when agentic mode ran
+  /** Things the reader must know to trust the report, e.g. the AI step failed. */
+  warnings?: string[];
   durationMs: number;
 }
 

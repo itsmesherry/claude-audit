@@ -20,6 +20,9 @@ import type { AuditOptions } from './core/types';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require('../package.json');
 
+const VALID_OUTPUTS: string[] = ['terminal', 'markdown', 'html', 'json'];
+const VALID_CATEGORIES: string[] = ['security', 'quality', 'performance', 'architecture', 'dependencies', 'testing', 'documentation'];
+
 async function main(): Promise<void> {
   const program = new Command();
 
@@ -37,7 +40,7 @@ async function main(): Promise<void> {
     .option('--static', 'Run static analysis only (no AI)')
     .option('--fast', 'Use one-shot AI mode (no agentic loop). Faster & cheaper but shallower.', false)
     .option('--max-turns <n>', 'Max tool-use iterations for agentic mode', '25')
-    .option('--max-budget <tokens>', 'Hard ceiling on total tokens (input+output) per agentic audit', '500000')
+    .option('--max-budget <tokens>', 'Hard ceiling on total tokens (input+output, cached included) per agentic audit', '500000')
     .option('--no-trace', 'Do not write agent-trace.jsonl (trace is on by default in agentic mode)')
     .option('-V, --verbose', 'Show per-turn token spend, tool durations, and result previews', false)
     .option('--output-dir <dir>', 'Directory for report files (default: .claude-audit/)')
@@ -72,6 +75,16 @@ Examples:
   const categories = opts['categories']
     ? (opts['categories'] as string).split(',').map(c => c.trim()) as AuditOptions['categories']
     : undefined;
+
+  // A typo here would otherwise produce an empty report that passes CI
+  const unknownOutputs = outputFormats.filter(f => !VALID_OUTPUTS.includes(f));
+  if (unknownOutputs.length > 0) {
+    program.error(`error: unknown output format '${unknownOutputs.join(', ')}'. Valid: ${VALID_OUTPUTS.join(', ')}`, { exitCode: 2 });
+  }
+  const unknownCategories = (categories ?? []).filter(c => !VALID_CATEGORIES.includes(c));
+  if (unknownCategories.length > 0) {
+    program.error(`error: unknown category '${unknownCategories.join(', ')}'. Valid: ${VALID_CATEGORIES.join(', ')}`, { exitCode: 2 });
+  }
 
   const resolvedApiKey = (opts['apiKey'] as string | undefined) ?? process.env['ANTHROPIC_API_KEY'];
   // Agentic is the default when an API key is available and --fast wasn't set.
@@ -162,6 +175,12 @@ Examples:
       }
     }
 
+    // Warnings go to stderr in every mode, so they reach CI logs without
+    // corrupting --json output on stdout
+    for (const warning of report.warnings ?? []) {
+      console.error(chalk.yellow(`  ⚠ ${warning}`));
+    }
+
     // Generate outputs
     const reportDir = path.resolve(
       opts['outputDir'] as string ?? path.join(options.path, '.claude-audit'),
@@ -234,7 +253,9 @@ Examples:
     exitCode = 2;
   }
 
-  process.exit(exitCode);
+  // Let stdout drain before exiting: exiting straight away cuts piped JSON
+  // off at the pipe buffer size (64 KB)
+  process.stdout.write('', () => process.exit(exitCode));
 }
 
 main().catch(err => {

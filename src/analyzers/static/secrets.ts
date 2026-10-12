@@ -10,11 +10,14 @@ interface SecretPattern {
   regex: RegExp;
   severity: Finding['severity'];
   fix: string;
+  /** The matched line holds a credential, so every string literal on it is masked. */
+  secret?: boolean;
 }
 
 const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: 'SEC-001',
+    secret: true,
     name: 'Hardcoded API Key',
     regex: /(?:api[_-]?key|apikey)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/gi,
     severity: 'critical',
@@ -22,6 +25,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: 'SEC-002',
+    secret: true,
     name: 'Hardcoded Secret / Password',
     regex: /(?:secret|password|passwd|pwd)\s*[:=]\s*["']([^"']{8,})["']/gi,
     severity: 'critical',
@@ -29,6 +33,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: 'SEC-003',
+    secret: true,
     name: 'Anthropic / OpenAI Key Exposed',
     regex: /(?:sk-[A-Za-z0-9]{32,}|sk-ant-[A-Za-z0-9\-]{30,})/g,
     severity: 'critical',
@@ -36,6 +41,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: 'SEC-004',
+    secret: true,
     name: 'AWS Access Key',
     regex: /AKIA[0-9A-Z]{16}/g,
     severity: 'critical',
@@ -43,6 +49,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: 'SEC-005',
+    secret: true,
     name: 'Private Key Block',
     regex: /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----/g,
     severity: 'critical',
@@ -50,6 +57,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: 'SEC-006',
+    secret: true,
     name: 'GitHub Token',
     regex: /ghp_[A-Za-z0-9]{36}|ghs_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82}/g,
     severity: 'critical',
@@ -57,6 +65,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: 'SEC-007',
+    secret: true,
     name: 'Hardcoded JWT Secret',
     regex: /jwt[_-]?secret\s*[:=]\s*["']([^"']{8,})["']/gi,
     severity: 'critical',
@@ -64,6 +73,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: 'SEC-008',
+    secret: true,
     name: 'Database Connection String with Credentials',
     regex: /(?:mongodb|mysql|postgres|postgresql):\/\/[^:]+:[^@]+@/gi,
     severity: 'high',
@@ -126,6 +136,34 @@ const SKIP_EXTENSIONS = new Set([
   '.lock', '.sum', '.mod',
 ]);
 
+/**
+ * Hide credentials before text goes into a report. Reports are written to
+ * disk, printed in CI logs and sent to the model, so they must never carry
+ * the secret that was found. maskTokens is safe on any text; maskLine also
+ * hides string literals and is for source lines.
+ */
+export function maskTokens(text: string): string {
+  return text
+    // user:password@ in connection strings (greedy: a password may contain @)
+    .replace(/:\/\/([^:/\s"'`]+):[^\s"'`]+@/g, '://$1:****@')
+    // provider tokens, quoted or not
+    .replace(/(AKIA|ghp_|ghs_|github_pat_|\bsk-ant-|\bsk-)[A-Za-z0-9_-]{8,}/g, '$1****');
+}
+
+function maskLine(line: string): string {
+  const stars = (m: string): string => `"${'*'.repeat(Math.min(m.length - 2, 12))}"`;
+  const masked = maskTokens(line);
+  // Decided per line, not per rule: a line can match a credential rule and
+  // another rule (eval, SQL), and both findings show the same line
+  const isSecret = SECRET_PATTERNS.some(p => {
+    p.regex.lastIndex = 0;
+    return !!p.secret && p.regex.test(line);
+  });
+  return isSecret
+    ? masked.replace(/(["'`])(?:(?!\1).){8,}\1/g, stars)
+    : masked.replace(/["'][A-Za-z0-9_\-./+]{8,}["']/g, stars);
+}
+
 export function analyzeSecrets(files: ScannedFile[]): Finding[] {
   const findings: Finding[] = [];
 
@@ -153,11 +191,7 @@ export function analyzeSecrets(files: ScannedFile[]): Finding[] {
         pattern.regex.lastIndex = 0;
 
         if (pattern.regex.test(line)) {
-          // Mask sensitive values in snippet
-          const maskedLine = line.replace(
-            /["'][A-Za-z0-9_\-./+]{8,}["']/g,
-            (m: string) => `"${'*'.repeat(Math.min(m.length - 2, 12))}"`,
-          );
+          const maskedLine = maskLine(line);
 
           findings.push({
             id: `${pattern.id}-${findings.length}`,

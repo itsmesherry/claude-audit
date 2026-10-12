@@ -222,6 +222,7 @@ export async function scanProject(
       languages: langCount,
       frameworks,
       totalFiles: scanned.length,
+      filesOverLimit: sourceFiles.length - toProcess.length || undefined,
       totalLines,
       hasTests,
       hasDependencyFile: !!dependencyFile,

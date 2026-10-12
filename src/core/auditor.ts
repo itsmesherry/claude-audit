@@ -99,6 +99,14 @@ export async function runAudit(
   let aiPowered = false;
   let agentic = false;
   let agentTrace: AgentTrace | undefined;
+  const warnings: string[] = [];
+
+  if (info.filesOverLimit) {
+    warnings.push(
+      `Only ${options.maxFiles} of ${options.maxFiles + info.filesOverLimit} files were scanned. ` +
+      'Raise --max-files to cover the rest.',
+    );
+  }
 
   const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
 
@@ -128,36 +136,25 @@ export async function runAudit(
             onFinish:      hooks.agent?.onFinish,
           },
         });
-        categories = mergeStaticIntoCategories(result.categories, allStaticFindings);
         agentTrace = result.trace;
-        agentic = true;
-        aiPowered = true;
 
-        // If the agent didn't finalize, gracefully degrade to static-only
-        if (result.trace.summary.stopReason !== 'completed') {
-          onProgress(`⚠ Agentic audit stopped early (${result.trace.summary.stopReason}). Merging partial findings with static analysis.`);
-        }
-      } catch (err) {
-        onProgress(`⚠ Agentic analysis failed (${err instanceof Error ? err.message : 'unknown error'}). Falling back to one-shot analysis.`);
-        try {
-          categories = await analyzeWithClaude(files, info, apiKey, options.model, options.categories);
-          categories = mergeStaticIntoCategories(categories, allStaticFindings);
+        if (result.finalized) {
+          categories = mergeStaticIntoCategories(result.categories, allStaticFindings);
+          agentic = true;
           aiPowered = true;
-        } catch (err2) {
-          onProgress(`⚠ One-shot analysis also failed (${err2 instanceof Error ? err2.message : 'unknown error'}). Falling back to static analysis only.`);
+        } else {
+          // Nothing was submitted (API error, or the budget ran out), so there
+          // is no AI verdict to show: report the static results and say why.
+          const { stopReason, stopDetail } = result.trace.summary;
+          warnings.push(
+            `The AI audit did not finish (${stopReason}${stopDetail ? ': ' + stopDetail : ''}). ` +
+            'This report contains static analysis only.',
+          );
           categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
         }
-      }
-
-      if (depFindings.length > 0 && !categories!.find(c => c.category === 'dependencies')) {
-        const depScore = Math.max(0, 80 - depFindings.length * 8);
-        categories!.push({
-          category: 'dependencies',
-          score: depScore,
-          grade: scoreToGrade(depScore),
-          findings: depFindings,
-          summary: `${depFindings.length} dependency issue(s) found.`,
-        });
+      } catch (err) {
+        warnings.push(`The AI audit failed (${err instanceof Error ? err.message : 'unknown error'}). This report contains static analysis only.`);
+        categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
       }
     } else {
       onProgress('Sending codebase to Claude for one-shot analysis...');
@@ -165,20 +162,8 @@ export async function runAudit(
         categories = await analyzeWithClaude(files, info, apiKey, options.model, options.categories);
         categories = mergeStaticIntoCategories(categories, allStaticFindings);
         aiPowered = true;
-
-        // Ensure dependencies category exists if we have dep findings
-        if (depFindings.length > 0 && !categories.find(c => c.category === 'dependencies')) {
-          const depScore = Math.max(0, 80 - depFindings.length * 8);
-          categories.push({
-            category: 'dependencies',
-            score: depScore,
-            grade: scoreToGrade(depScore),
-            findings: depFindings,
-            summary: `${depFindings.length} dependency issue(s) found.`,
-          });
-        }
       } catch (err) {
-        onProgress(`⚠ AI analysis failed (${err instanceof Error ? err.message : 'unknown error'}). Falling back to static analysis only.`);
+        warnings.push(`The AI audit failed (${err instanceof Error ? err.message : 'unknown error'}). This report contains static analysis only.`);
         categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
       }
     }
@@ -234,6 +219,7 @@ export async function runAudit(
     aiPowered,
     agentic: agentic || undefined,
     agentTrace,
+    warnings: warnings.length > 0 ? warnings : undefined,
     durationMs: Date.now() - startTime,
   };
 }

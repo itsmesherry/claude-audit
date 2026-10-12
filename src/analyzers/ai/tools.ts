@@ -71,9 +71,20 @@ export function safeResolve(projectRoot: string, userPath: string): string | nul
     ? path.resolve(userPath)
     : path.resolve(root, userPath);
 
-  const rel = path.relative(root, candidate);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  if (isOutside(root, candidate)) return null;
+
+  // A symlink inside the project must not lead out of it
+  try {
+    if (isOutside(fs.realpathSync(root), fs.realpathSync(candidate))) return null;
+  } catch {
+    // The path does not exist; the caller's own stat reports that
+  }
   return candidate;
+}
+
+function isOutside(root: string, candidate: string): boolean {
+  const rel = path.relative(root, candidate);
+  return rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel);
 }
 
 // ── Result helpers ───────────────────────────────
@@ -101,14 +112,15 @@ async function execListFiles(
     : 100;
 
   try {
-    const matches = await fg(pattern, {
+    // A glob may contain "..", so results go through the sandbox too
+    const matches = (await fg(pattern, {
       cwd: ctx.projectRoot,
       onlyFiles: true,
       dot: false,
       followSymbolicLinks: false,
       ignore: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**',
                '**/.next/**', '**/coverage/**', '**/__pycache__/**', '**/.venv/**'],
-    });
+    })).filter(rel => safeResolve(ctx.projectRoot, rel) !== null);
 
     const sliced = matches.slice(0, maxResults);
     const rows = sliced.map(rel => {
@@ -208,7 +220,9 @@ async function execSearchCode(
 
     for (const rel of files) {
       if (matches.length >= maxMatches) break;
-      const abs = path.join(ctx.projectRoot, rel);
+      // A glob may contain "..", so results go through the sandbox too
+      const abs = safeResolve(ctx.projectRoot, rel);
+      if (!abs) continue;
       let stat: fs.Stats;
       try { stat = fs.statSync(abs); } catch { continue; }
       if (!stat.isFile() || stat.size > MAX_FILE_READ_BYTES) continue;
@@ -248,7 +262,8 @@ async function execReadDependencyManifest(ctx: ToolContext): Promise<ToolExecuti
   if (!info.hasDependencyFile || !info.dependencyFile) {
     return ok('No dependency manifest detected for this project.');
   }
-  const abs = path.join(ctx.projectRoot, info.dependencyFile);
+  const abs = safeResolve(ctx.projectRoot, info.dependencyFile);
+  if (!abs) return err(`Manifest is outside the project root: ${info.dependencyFile}`);
   try {
     const stat = fs.statSync(abs);
     if (stat.size > MAX_FILE_READ_BYTES) {

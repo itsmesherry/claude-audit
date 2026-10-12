@@ -222,6 +222,27 @@ describe('analyzeSecrets', () => {
       expect(findings[0].snippet).toContain('*');
     });
 
+    it.each([
+      ['a password with symbols', 'const password = "p@ssw0rd!Hunter#2";', 'p@ssw0rd'],
+      ['an unquoted AWS key', 'aws_key = AKIAIOSFODNN7EXAMPLE', 'IOSFODNN7EXAMPLE'],
+      ['a connection-string password', 'const url = "postgres://admin:S3cr3tDbPass@db:5432/app";', 'S3cr3tDbPass'],
+      ['an unquoted GitHub token', `token: ghp_${'a'.repeat(36)}`, 'a'.repeat(36)],
+      ['a password on a line another rule also matches', 'eval(x); const password = "p@ss w0rd!!x";', 'p@ss'],
+      ['an AWS key glued to other text', 'key=fooAKIAIOSFODNN7EXAMPLE', 'IOSFODNN7EXAMPLE'],
+      ['a connection-string password containing @', 'DATABASE_URL=postgres://admin:p@ssw0rdTail@db:5432/app', 'ssw0rdTail'],
+    ])('never puts %s in a snippet', (_name, line, secret) => {
+      const findings = analyzeSecrets([makeFile('src/config.ts', line)]);
+      expect(findings.length).toBeGreaterThanOrEqual(1);
+      for (const finding of findings) {
+        expect(finding.snippet).not.toContain(secret);
+      }
+    });
+
+    it('keeps code readable in findings that are not about a credential', () => {
+      const [finding] = analyzeSecrets([makeFile('src/run.ts', 'eval("doSomething(userInput)");')]);
+      expect(finding.snippet).toBe('eval("doSomething(userInput)");');
+    });
+
     it('truncates very long snippets to 120 chars', () => {
       const longLine = 'const api_key = "' + 'a'.repeat(200) + '";';
       const files = [makeFile('src/config.ts', longLine)];
