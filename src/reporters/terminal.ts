@@ -35,6 +35,25 @@ function formatDuration(ms: number): string {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
+/** Wrap text to the terminal width and indent every line, keeping its own line breaks. */
+function block(text: string, indent: string): string[] {
+  const width = Math.max(40, Math.min(process.stdout.columns ?? 100, 110) - indent.length);
+  const out: string[] = [];
+  for (const line of text.split('\n')) {
+    let current = '';
+    for (const word of line.split(' ')) {
+      if (current && (current + ' ' + word).length > width) {
+        out.push(indent + current);
+        current = word;
+      } else {
+        current = current ? current + ' ' + word : word;
+      }
+    }
+    out.push(indent + current);
+  }
+  return out;
+}
+
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
@@ -65,15 +84,19 @@ export function printReport(report: AuditReport): void {
     }
   }
 
+  // ── Category summaries (AI audits) ────────────────────
+  for (const cat of categories.filter(c => c.summary)) {
+    console.log();
+    console.log(`  ${amber.bold(cat.category.charAt(0).toUpperCase() + cat.category.slice(1))}`);
+    console.log(block(cat.summary, '  ').join('\n'));
+  }
+
   // ── Scores ────────────────────────────────────────────
   console.log();
   for (const cat of categories) {
     const name = (cat.category.charAt(0).toUpperCase() + cat.category.slice(1)).padEnd(14);
     const count = cat.findings.length > 0 ? dim(`  ${plural(cat.findings.length, 'finding')}`) : '';
     console.log(`  ${name} ${scoreBar(cat.score)}  ${scoreColor(cat.score)(String(cat.score).padStart(3))}  ${cat.grade}${count}`);
-    if (cat.summary) {
-      console.log(dim(`  ${' '.repeat(14)} ${cat.summary}`));
-    }
   }
 
   // ── Agent run ─────────────────────────────────────────
@@ -110,12 +133,15 @@ function printFinding(f: Finding): void {
   console.log(`  ${label} ${chalk.bold(f.title)}${location ? '  ' + location : ''}`);
   // Static secret findings carry a description that only repeats the title
   if (f.description && f.description !== `Potential ${f.title} found in source code.`) {
-    console.log(`${indent}${f.description}`);
+    console.log(block(f.description, indent).join('\n'));
   }
   if (f.snippet) {
-    console.log(dim(`${indent}${f.snippet}`));
+    // Code is indented, never re-wrapped
+    console.log(dim(f.snippet.split('\n').map(l => indent + l).join('\n')));
   }
   if (f.fix) {
-    console.log(`${indent}${amber('fix:')} ${f.fix}`);
+    const lines = block(`fix: ${f.fix}`, indent);
+    lines[0] = lines[0].replace('fix:', amber('fix:'));
+    console.log(lines.join('\n'));
   }
 }

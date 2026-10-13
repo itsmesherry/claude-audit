@@ -19,6 +19,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   0.3.0. Asking for one of them with `--static` gives a warning.
 - A line that holds a credential is reported once, by the most specific rule,
   instead of once per matching rule.
+- The default model is now `claude-sonnet-5-5`. Pass `--model` to use another.
+- A category the model does not report on is left out with a warning, instead of
+  appearing with a made-up score of 50 or 70. `finalize_audit` now requires
+  every requested category, so this should be rare.
+- Credentials in code the model quotes are masked the same way as in static
+  findings.
 - README rewritten, with a demo recorded from a real run on `examples/shop-api`.
 
 ### Removed

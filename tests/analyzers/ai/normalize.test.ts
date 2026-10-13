@@ -39,6 +39,8 @@ describe('normalizeFinding', () => {
       'security', 'X-1',
     );
     expect(finding.snippet).not.toContain('IOSFODNN7EXAMPLE');
+    const quoted = normalizeFinding({ snippet: 'port: 3000,\njwt_secret: "shop-api-dev-secret-2024",' }, 'security', 'X-1');
+    expect(quoted.snippet).toBe('port: 3000,\njwt_secret: "************",');
     expect(finding.description).toBe('Uses postgres://admin:****@db/app');
   });
 

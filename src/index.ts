@@ -34,7 +34,7 @@ async function main(): Promise<void> {
     .option('-k, --api-key <key>', 'Anthropic API key (or set ANTHROPIC_API_KEY env var)')
     .option('-o, --output <formats>', 'Output formats: terminal,markdown,html,json (comma-separated)', 'terminal,markdown,html')
     .option('-c, --categories <cats>', 'Audit only specific categories (security,quality,performance,architecture,dependencies,testing,documentation)')
-    .option('-m, --model <model>', 'Claude model to use', 'claude-sonnet-4-6')
+    .option('-m, --model <model>', 'Claude model to use', 'claude-sonnet-5-5')
     .option('--max-files <n>', 'Maximum files to scan', '500')
     .option('--max-file-size <kb>', 'Maximum file size in KB to include', '100')
     .option('--static', 'Run static analysis only (no AI)')
@@ -95,7 +95,7 @@ Examples:
     apiKey: opts['apiKey'] as string | undefined,
     output: outputFormats,
     categories,
-    model: (opts['model'] as string) ?? 'claude-sonnet-4-6',
+    model: (opts['model'] as string) ?? 'claude-sonnet-5-5',
     maxFiles: parseInt(opts['maxFiles'] as string) || 500,
     maxFileSize: parseInt(opts['maxFileSize'] as string) || 100,
     noAi: !!opts['static'],

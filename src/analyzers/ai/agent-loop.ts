@@ -181,7 +181,7 @@ export async function runAgentLoop(
   initialUserPrompt: string,
 ): Promise<AgentLoopResult> {
   const client = new Anthropic({ apiKey: opts.apiKey });
-  const tools = buildToolDefinitions();
+  const tools = buildToolDefinitions(opts.filterCategories);
   const trace: ToolCallRecord[] = [];
 
   let finalPayload: FinalAuditPayload | null = null;
@@ -498,17 +498,11 @@ function buildCategoriesFromFinal(
     }));
   }
 
-  return order.map(cat => {
+  // A category the model left out is left out of the report too: the caller
+  // warns about it rather than showing a score nobody gave
+  return order.flatMap(cat => {
     const data = payload[cat as keyof FinalAuditPayload];
-    if (!data) {
-      return {
-        category: cat,
-        score: 70,
-        grade: scoreToGrade(70),
-        findings: [],
-        summary: 'No findings reported for this category.',
-      };
-    }
+    if (!data) return [];
 
     const score = normalizeScore(data.score, 50);
     const findings = normalizeFindings(data.findings, cat, `${cat.toUpperCase().slice(0, 3)}-AGENT`);

@@ -104,7 +104,7 @@ Usage: claude-audit [options] [path]
   path                      Project to audit (default: ".")
 
   -k, --api-key <key>       Anthropic API key (or set ANTHROPIC_API_KEY)
-  -m, --model <model>       Claude model (default: "claude-sonnet-4-6")
+  -m, --model <model>       Claude model (default: "claude-sonnet-5-5")
   --static                  Static analysis only
   --fast                    One-shot AI mode instead of the agentic audit
   -c, --categories <list>   Only these categories, comma-separated

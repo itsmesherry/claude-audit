@@ -363,7 +363,9 @@ export const TOOL_EXECUTORS: Record<ToolName, Executor> = {
  * We intentionally keep descriptions concrete and call out what NOT to use
  * the tool for — Claude reads descriptions and calibrates accordingly.
  */
-export function buildToolDefinitions(): Anthropic.Tool[] {
+export function buildToolDefinitions(
+  requiredCategories: string[] = ['security', 'quality', 'performance', 'architecture', 'testing', 'documentation', 'dependencies'],
+): Anthropic.Tool[] {
   const findingSchema = {
     type: 'object',
     properties: {
@@ -480,6 +482,8 @@ export function buildToolDefinitions(): Anthropic.Tool[] {
           documentation: categoryPayload,
           dependencies:  categoryPayload,
         },
+        // Without this a model may submit one category and stop
+        required: requiredCategories,
       },
     },
   ];

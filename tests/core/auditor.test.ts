@@ -99,7 +99,9 @@ describe('runAudit when the AI step succeeds', () => {
     const report = await runAudit(options(dir, { agentic: false }), () => undefined);
 
     expect(report.aiPowered).toBe(true);
-    expect(report.warnings).toBeUndefined();
+    // The model answered for security only; nothing is invented for the rest
+    expect(report.warnings).toEqual(['The AI audit returned no result for quality, performance, architecture, testing, documentation.']);
+    expect(report.categories.map(c => c.category).sort()).toEqual(['dependencies', 'security']);
     const sec = report.categories.find(c => c.category === 'security')!;
     expect(sec.findings.map(f => f.title)).toEqual(expect.arrayContaining(['AI finding', 'Hardcoded Secret / Password']));
     expect(sec.score).toBeLessThan(90);

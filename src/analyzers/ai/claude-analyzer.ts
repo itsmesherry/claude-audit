@@ -172,17 +172,10 @@ export async function analyzeWithClaude(
   const allCategoryOrder: AuditCategory[] = ['security', 'quality', 'performance', 'architecture', 'testing', 'documentation'];
   const categoryOrder = filterCategories ?? allCategoryOrder;
 
-  return categoryOrder.map(cat => {
+  // A category the model left out is left out of the report too
+  return categoryOrder.flatMap(cat => {
     const data = parsed[cat as keyof AIAuditResponse];
-    if (!data) {
-      return {
-        category: cat,
-        score: 50,
-        grade: 'C' as const,
-        findings: [],
-        summary: 'Analysis unavailable.',
-      };
-    }
+    if (!data) return [];
 
     const score = normalizeScore(data.score, 50);
     return {

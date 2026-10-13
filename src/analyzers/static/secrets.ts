@@ -150,15 +150,24 @@ export function maskTokens(text: string): string {
     .replace(/(AKIA|ghp_|ghs_|github_pat_|\bsk-ant-|\bsk-)[A-Za-z0-9_-]{8,}/g, '$1****');
 }
 
+function holdsCredential(line: string): boolean {
+  return SECRET_PATTERNS.some(p => {
+    p.regex.lastIndex = 0;
+    return !!p.secret && p.regex.test(line);
+  });
+}
+
+/** Mask code quoted by the model: full masking on lines that hold a credential. */
+export function maskSnippet(snippet: string): string {
+  return snippet.split('\n').map(l => (holdsCredential(l) ? maskLine(l) : maskTokens(l))).join('\n');
+}
+
 function maskLine(line: string): string {
   const stars = (m: string): string => `"${'*'.repeat(Math.min(m.length - 2, 12))}"`;
   const masked = maskTokens(line);
   // Decided per line, not per rule: a line can match a credential rule and
   // another rule (eval, SQL), and both findings show the same line
-  const isSecret = SECRET_PATTERNS.some(p => {
-    p.regex.lastIndex = 0;
-    return !!p.secret && p.regex.test(line);
-  });
+  const isSecret = holdsCredential(line);
   return isSecret
     ? masked.replace(/(["'`])(?:(?!\1).){8,}\1/g, stars)
     : masked.replace(/["'][A-Za-z0-9_\-./+]{8,}["']/g, stars);

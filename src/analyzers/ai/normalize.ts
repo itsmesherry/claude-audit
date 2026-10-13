@@ -6,7 +6,7 @@
 // hostile repository can steer it. Only well-typed fields get into a report.
 
 import type { Finding, AuditCategory, Severity } from '../../core/types';
-import { maskTokens } from '../static/secrets';
+import { maskSnippet, maskTokens } from '../static/secrets';
 
 const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'info'];
 
@@ -37,7 +37,7 @@ export function normalizeFinding(raw: unknown, category: AuditCategory, fallback
     description: text(f['description']) ?? '',
     file: text(f['file']),
     line: typeof line === 'number' && Number.isInteger(line) && line > 0 ? line : undefined,
-    snippet: text(f['snippet']),
+    snippet: typeof f['snippet'] === 'string' && f['snippet'] ? maskSnippet(f['snippet']) : undefined,
     fix: text(f['fix']),
   };
 }

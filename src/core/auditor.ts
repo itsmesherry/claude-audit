@@ -185,6 +185,13 @@ export async function runAudit(
   if (notCovered.length > 0) {
     warnings.push(`Static analysis has no rules for ${notCovered.join(', ')}. These need the AI audit.`);
   }
+  if (aiPowered) {
+    const asked = options.categories ?? (['security', 'quality', 'performance', 'architecture', 'testing', 'documentation'] as AuditCategory[]);
+    const unanswered = asked.filter(c => !categories.some(got => got.category === c));
+    if (unanswered.length > 0) {
+      warnings.push(`The AI audit returned no result for ${unanswered.join(', ')}.`);
+    }
+  }
 
   // Filter to requested categories
   if (options.categories) {

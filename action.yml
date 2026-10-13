@@ -20,7 +20,7 @@ inputs:
   model:
     description: 'Claude model to use'
     required: false
-    default: 'claude-sonnet-4-6'
+    default: 'claude-sonnet-5-5'
   output:
     description: 'Output formats (terminal,markdown,html,json)'
     required: false
