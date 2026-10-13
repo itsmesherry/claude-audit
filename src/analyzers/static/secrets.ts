@@ -24,14 +24,6 @@ const SECRET_PATTERNS: SecretPattern[] = [
     fix: 'Move to environment variables: process.env.API_KEY',
   },
   {
-    id: 'SEC-002',
-    secret: true,
-    name: 'Hardcoded Secret / Password',
-    regex: /(?:secret|password|passwd|pwd)\s*[:=]\s*["']([^"']{8,})["']/gi,
-    severity: 'critical',
-    fix: 'Use environment variables or a secrets manager (e.g. HashiCorp Vault, AWS Secrets Manager)',
-  },
-  {
     id: 'SEC-003',
     secret: true,
     name: 'Anthropic / OpenAI Key Exposed',
@@ -78,6 +70,14 @@ const SECRET_PATTERNS: SecretPattern[] = [
     regex: /(?:mongodb|mysql|postgres|postgresql):\/\/[^:]+:[^@]+@/gi,
     severity: 'high',
     fix: 'Use environment variable: DATABASE_URL=... and read via process.env.DATABASE_URL',
+  },
+  {
+    id: 'SEC-002',
+    secret: true,
+    name: 'Hardcoded Secret / Password',
+    regex: /(?:secret|password|passwd|pwd)\s*[:=]\s*["']([^"']{8,})["']/gi,
+    severity: 'critical',
+    fix: 'Use environment variables or a secrets manager (e.g. HashiCorp Vault, AWS Secrets Manager)',
   },
   {
     id: 'SEC-009',
@@ -181,6 +181,7 @@ export function analyzeSecrets(files: ScannedFile[]): Finding[] {
     ) continue;
 
     const lines = file.content.split('\n');
+    const credentialLines = new Set<number>();
 
     for (const pattern of SECRET_PATTERNS) {
       // Reset regex state
@@ -191,6 +192,12 @@ export function analyzeSecrets(files: ScannedFile[]): Finding[] {
         pattern.regex.lastIndex = 0;
 
         if (pattern.regex.test(line)) {
+          // One credential finding per line: the specific rules come first in
+          // the list, so "jwt_secret = ..." is not also reported as a password
+          if (pattern.secret) {
+            if (credentialLines.has(lineIdx)) continue;
+            credentialLines.add(lineIdx);
+          }
           const maskedLine = maskLine(line);
 
           findings.push({

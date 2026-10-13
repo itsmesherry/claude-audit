@@ -49,9 +49,13 @@ function mergeStaticIntoCategories(
   return Array.from(categoryMap.values());
 }
 
+// The categories the static analyzers have rules for. Performance and
+// architecture are judged by the AI audit only, so a static report leaves
+// them out instead of showing a score nothing was measured for.
+const STATIC_CATEGORIES: AuditCategory[] = ['security', 'quality', 'dependencies', 'testing', 'documentation'];
+
 function buildStaticOnlyCategories(staticFindings: Finding[], filterCategories?: AuditCategory[]): CategoryScore[] {
-  const allCategories: AuditCategory[] = ['security', 'quality', 'performance', 'architecture', 'dependencies', 'testing', 'documentation'];
-  const categories = filterCategories ?? allCategories;
+  const categories = (filterCategories ?? STATIC_CATEGORIES).filter(c => STATIC_CATEGORIES.includes(c));
   const catFindings = new Map<AuditCategory, Finding[]>();
   categories.forEach(c => catFindings.set(c, []));
 
@@ -169,12 +173,17 @@ export async function runAudit(
     }
   } else {
     if (!options.quiet && !apiKey && !options.noAi) {
-      onProgress('⚡ Running fast static analysis (15+ built-in rules)...');
-      onProgress('💡 Tip: Set ANTHROPIC_API_KEY for deep AI-powered analysis → https://console.anthropic.com/keys');
+      onProgress('Running static analysis...');
+      onProgress('No API key: set ANTHROPIC_API_KEY for the AI audit');
     } else if (!options.quiet && options.noAi) {
-      onProgress('⚡ Running static analysis (--static mode)...');
+      onProgress('Running static analysis (--static mode)...');
     }
     categories = buildStaticOnlyCategories(allStaticFindings, options.categories);
+  }
+
+  const notCovered = aiPowered ? [] : (options.categories ?? []).filter(c => !STATIC_CATEGORIES.includes(c));
+  if (notCovered.length > 0) {
+    warnings.push(`Static analysis has no rules for ${notCovered.join(', ')}. These need the AI audit.`);
   }
 
   // Filter to requested categories

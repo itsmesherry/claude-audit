@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 
 import { runAudit } from './core/auditor';
-import { printBanner, printReport } from './reporters/terminal';
+import { printReport } from './reporters/terminal';
 import { generateMarkdownReport } from './reporters/markdown';
 import { generateHtmlReport } from './reporters/html';
 import { generateJsonReport } from './reporters/json';
@@ -107,11 +107,6 @@ Examples:
     trace: opts['trace'] !== false,
   };
 
-  // Print banner (unless JSON mode or quiet)
-  if (!opts['json'] && !options.quiet) {
-    printBanner();
-  }
-
   const liveMode = !opts['json'] && !options.quiet;
 
   // Pre-agent spinner: used during scan + static phases only. For agentic runs
@@ -168,7 +163,7 @@ Examples:
 
     if (liveMode) {
       if (!spinnerHandedOff) {
-        spinner.succeed(chalk.hex('#E8A87C')(`Audit complete in ${report.durationMs < 1000 ? report.durationMs + 'ms' : (report.durationMs / 1000).toFixed(1) + 's'}`));
+        spinner.stop();
       } else {
         // Logger already printed its own finish rule; just a blank line to breathe.
         console.log();
@@ -178,8 +173,14 @@ Examples:
     // Warnings go to stderr in every mode, so they reach CI logs without
     // corrupting --json output on stdout
     for (const warning of report.warnings ?? []) {
-      console.error(chalk.yellow(`  ⚠ ${warning}`));
+      console.error(chalk.yellow(`  warning: ${warning}`));
     }
+
+    // Paths outside the working directory read better absolute than as ../../..
+    const shown = (p: string): string => {
+      const rel = path.relative(process.cwd(), p);
+      return rel.startsWith('..') ? p : rel;
+    };
 
     // Generate outputs
     const reportDir = path.resolve(
@@ -201,7 +202,7 @@ Examples:
       }
       fs.writeFileSync(tracePath, lines.join('\n') + '\n', 'utf-8');
       if (!opts['json'] && !options.quiet) {
-        console.log(chalk.gray(`  🧭 Agent trace    → ${path.relative(process.cwd(), tracePath)}`));
+        console.log(chalk.gray(`  wrote ${shown(tracePath)}`));
       }
     }
 
@@ -213,7 +214,7 @@ Examples:
       const mdPath = path.join(reportDir, 'audit-report.md');
       generateMarkdownReport(report, mdPath);
       if (!opts['json'] && !options.quiet) {
-        console.log(chalk.gray(`  📄 Markdown report → ${path.relative(process.cwd(), mdPath)}`));
+        console.log(chalk.gray(`  wrote ${shown(mdPath)}`));
       }
     }
 
@@ -221,7 +222,7 @@ Examples:
       const htmlPath = path.join(reportDir, 'audit-report.html');
       generateHtmlReport(report, htmlPath);
       if (!opts['json'] && !options.quiet) {
-        console.log(chalk.gray(`  🌐 HTML report    → ${path.relative(process.cwd(), htmlPath)}`));
+        console.log(chalk.gray(`  wrote ${shown(htmlPath)}`));
       }
     }
 
@@ -232,7 +233,7 @@ Examples:
         const jsonPath = path.join(reportDir, 'audit-report.json');
         generateJsonReport(report, jsonPath);
         if (!options.quiet) {
-          console.log(chalk.gray(`  📦 JSON report    → ${path.relative(process.cwd(), jsonPath)}`));
+          console.log(chalk.gray(`  wrote ${shown(jsonPath)}`));
         }
       }
     }

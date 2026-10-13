@@ -48,7 +48,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "boxen": "^5.1.2",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
     "fast-glob": "^3.3.2",

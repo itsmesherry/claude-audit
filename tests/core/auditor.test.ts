@@ -62,6 +62,16 @@ describe('runAudit when the AI step fails', () => {
     expect(report.agentTrace?.summary.stopReason).toBe('error');
   });
 
+  it('leaves out categories that static analysis cannot judge, and says so when asked for one', async () => {
+    const all = await runAudit(options(dir, { noAi: true }), () => undefined);
+    expect(all.categories.map(c => c.category)).toEqual(['security', 'quality', 'dependencies', 'testing', 'documentation']);
+    expect(all.warnings).toBeUndefined();
+
+    const asked = await runAudit(options(dir, { noAi: true, categories: ['security', 'performance'] }), () => undefined);
+    expect(asked.categories.map(c => c.category)).toEqual(['security']);
+    expect(asked.warnings).toEqual(['Static analysis has no rules for performance. These need the AI audit.']);
+  });
+
   it('warns when the project has more files than --max-files', async () => {
     const report = await runAudit(options(dir, { noAi: true, maxFiles: 1 }), () => undefined);
 
@@ -122,7 +132,7 @@ describe('runAudit when the AI step succeeds', () => {
       if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved;
     }
 
-    expect(messages.join('\n')).toMatch(/Set ANTHROPIC_API_KEY/);
+    expect(messages.join('\n')).toMatch(/set ANTHROPIC_API_KEY/);
     expect(messages.join('\n')).toMatch(/--static mode/);
   });
 });

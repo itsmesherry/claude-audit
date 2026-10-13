@@ -7,6 +7,24 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Changed
+
+- The terminal report is compact: no banner, no emoji, one block per finding
+  and a single summary line. The Markdown report is shorter in the same way,
+  and both the Markdown and HTML reports now show warnings.
+- Static-only reports score just the categories that have static rules
+  (security, quality, dependencies, testing, documentation). Performance and
+  architecture used to appear with a fixed 80 that nothing had measured; they
+  are now left out unless the AI audit ran, so static scores can differ from
+  0.3.0. Asking for one of them with `--static` gives a warning.
+- A line that holds a credential is reported once, by the most specific rule,
+  instead of once per matching rule.
+- README rewritten, with a demo recorded from a real run on `examples/shop-api`.
+
+### Removed
+
+- The `boxen` dependency.
+
 ## [0.3.0] - 2026-10-13
 
 ### Security

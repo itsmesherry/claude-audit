@@ -1,0 +1,12 @@
+{
+  "name": "shop-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deliberately flawed sample project for the claude-audit demo",
+  "main": "src/server.js",
+  "dependencies": {
+    "express": "^4.19.2",
+    "lodash": "4.17.15",
+    "pg": "^8.11.5"
+  }
+}

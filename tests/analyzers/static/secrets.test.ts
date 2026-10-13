@@ -238,6 +238,11 @@ describe('analyzeSecrets', () => {
       }
     });
 
+    it('reports a credential line once, by the most specific rule', () => {
+      const findings = analyzeSecrets([makeFile('src/config.ts', 'jwt_secret: "shop-api-dev-secret-2024",')]);
+      expect(findings.map(f => f.title)).toEqual(['Hardcoded JWT Secret']);
+    });
+
     it('keeps code readable in findings that are not about a credential', () => {
       const [finding] = analyzeSecrets([makeFile('src/run.ts', 'eval("doSomething(userInput)");')]);
       expect(finding.snippet).toBe('eval("doSomething(userInput)");');
