@@ -10,18 +10,22 @@ Set Width 1200
 Set Height 800
 Set Padding 24
 Set Theme "Catppuccin Mocha"
-Set TypingSpeed 45ms
-Set Framerate 10
+Set TypingSpeed 70ms
+Set Framerate 15
 
-# Use the local build under the name people will type
+# Use the local build under the name people will type. The real run prints
+# everything in about 20 ms, which reads as a flash in a GIF, so the lines are
+# shown 60 ms apart. The text itself is the tool's unmodified output.
 Hide
-Type "alias claude-audit='node dist/index.js' && PS1='$ ' && clear"
+Type `claude-audit() { FORCE_COLOR=3 node dist/index.js "$@" 2>/dev/null | while IFS= read -r line; do echo "$line"; sleep 0.06; done; }`
+Enter
+Type "PS1='$ ' && clear"
 Enter
 Sleep 500ms
 Show
 
-Sleep 600ms
+Sleep 1s
 Type "claude-audit --static examples/shop-api"
-Sleep 600ms
+Sleep 800ms
 Enter
-Sleep 7s
+Sleep 9s

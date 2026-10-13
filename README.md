@@ -1,12 +1,23 @@
-# claude-audit
+<h1 align="center">claude-audit</h1>
 
-[![npm version](https://img.shields.io/npm/v/claude-audit)](https://www.npmjs.com/package/claude-audit)
-[![CI](https://github.com/itsmesherry/claude-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/itsmesherry/claude-audit/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<p align="center">
+  A command-line code auditor: fast static checks,<br>
+  plus an optional audit where Claude investigates the code with read-only tools.
+</p>
 
-A command-line code auditor. It runs a fast set of static checks on a project, and, if you give it an Anthropic API key, has Claude investigate the code with read-only tools and report what it finds. You get a score per category, a list of findings with file and line, and reports in the terminal, Markdown, HTML or JSON.
+<p align="center">
+  <a href="https://www.npmjs.com/package/claude-audit"><img alt="npm" src="https://img.shields.io/npm/v/claude-audit"></a>
+  <a href="https://github.com/itsmesherry/claude-audit/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/itsmesherry/claude-audit/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://www.npmjs.com/package/claude-audit"><img alt="Node" src="https://img.shields.io/node/v/claude-audit"></a>
+  <a href="https://www.npmjs.com/package/claude-audit"><img alt="Downloads" src="https://img.shields.io/npm/dm/claude-audit"></a>
+  <a href="https://github.com/itsmesherry/claude-audit/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue"></a>
+</p>
 
-<img src="media/demo.gif" alt="claude-audit --static run on a sample project" width="800" />
+<p align="center">
+  <img src="media/demo.gif" alt="claude-audit --static run on a sample project" width="800" />
+</p>
+
+It scores a project per category and lists each finding with its file, line and a suggested fix. Reports come out in the terminal, and as Markdown, HTML or JSON. Without an API key it runs the static checks only, and nothing leaves your machine.
 
 ## Usage
 

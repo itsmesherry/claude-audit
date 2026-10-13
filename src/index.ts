@@ -28,7 +28,7 @@ async function main(): Promise<void> {
 
   program
     .name('claude-audit')
-    .description('AI-powered codebase auditor — security, quality, performance, architecture & more')
+    .description('Code auditor: fast static checks, plus an optional Claude-driven audit with read-only tools')
     .version(VERSION, '-v, --version')
     .argument('[path]', 'Path to the project to audit', '.')
     .option('-k, --api-key <key>', 'Anthropic API key (or set ANTHROPIC_API_KEY env var)')

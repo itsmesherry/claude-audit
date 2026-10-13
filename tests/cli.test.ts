@@ -39,7 +39,7 @@ describe('CLI', () => {
       const { stdout, exitCode } = run(['--help']);
       expect(exitCode).toBe(0);
       expect(stdout).toContain('claude-audit');
-      expect(stdout).toContain('AI-powered codebase auditor');
+      expect(stdout).toContain('Code auditor');
       expect(stdout).toContain('--static');
       expect(stdout).toContain('--api-key');
       expect(stdout).toContain('--output');
