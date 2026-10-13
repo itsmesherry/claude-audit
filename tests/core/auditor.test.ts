@@ -62,6 +62,16 @@ describe('runAudit when the AI step fails', () => {
     expect(report.agentTrace?.summary.stopReason).toBe('error');
   });
 
+  it('leaves out categories that static analysis cannot judge, and says so when asked for one', async () => {
+    const all = await runAudit(options(dir, { noAi: true }), () => undefined);
+    expect(all.categories.map(c => c.category)).toEqual(['security', 'quality', 'dependencies', 'testing', 'documentation']);
+    expect(all.warnings).toBeUndefined();
+
+    const asked = await runAudit(options(dir, { noAi: true, categories: ['security', 'performance'] }), () => undefined);
+    expect(asked.categories.map(c => c.category)).toEqual(['security']);
+    expect(asked.warnings).toEqual(['Static analysis has no rules for performance. These need the AI audit.']);
+  });
+
   it('warns when the project has more files than --max-files', async () => {
     const report = await runAudit(options(dir, { noAi: true, maxFiles: 1 }), () => undefined);
 
@@ -89,7 +99,9 @@ describe('runAudit when the AI step succeeds', () => {
     const report = await runAudit(options(dir, { agentic: false }), () => undefined);
 
     expect(report.aiPowered).toBe(true);
-    expect(report.warnings).toBeUndefined();
+    // The model answered for security only; nothing is invented for the rest
+    expect(report.warnings).toEqual(['The AI audit returned no result for quality, performance, architecture, testing, documentation.']);
+    expect(report.categories.map(c => c.category).sort()).toEqual(['dependencies', 'security']);
     const sec = report.categories.find(c => c.category === 'security')!;
     expect(sec.findings.map(f => f.title)).toEqual(expect.arrayContaining(['AI finding', 'Hardcoded Secret / Password']));
     expect(sec.score).toBeLessThan(90);
@@ -122,7 +134,7 @@ describe('runAudit when the AI step succeeds', () => {
       if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved;
     }
 
-    expect(messages.join('\n')).toMatch(/Set ANTHROPIC_API_KEY/);
+    expect(messages.join('\n')).toMatch(/set ANTHROPIC_API_KEY/);
     expect(messages.join('\n')).toMatch(/--static mode/);
   });
 });

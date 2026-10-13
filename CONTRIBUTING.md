@@ -25,6 +25,9 @@ Node 18 or newer. No API key is needed for the tests: the Anthropic SDK is mocke
 
 Known gaps and ideas are listed in [TODO.md](TODO.md).
 
+If you change the terminal output, re-record the demo: `npm run build && vhs media/demo.tape`
+(needs [vhs](https://github.com/charmbracelet/vhs)), and update the sample output in the README.
+
 ## Two rules for this codebase
 
 - **Never print a secret.** Anything a rule matches may be a real credential.

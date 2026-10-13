@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 
 import { runAudit } from './core/auditor';
-import { printBanner, printReport } from './reporters/terminal';
+import { printReport } from './reporters/terminal';
 import { generateMarkdownReport } from './reporters/markdown';
 import { generateHtmlReport } from './reporters/html';
 import { generateJsonReport } from './reporters/json';
@@ -28,13 +28,13 @@ async function main(): Promise<void> {
 
   program
     .name('claude-audit')
-    .description('AI-powered codebase auditor — security, quality, performance, architecture & more')
+    .description('Code auditor: fast static checks, plus an optional Claude-driven audit with read-only tools')
     .version(VERSION, '-v, --version')
     .argument('[path]', 'Path to the project to audit', '.')
     .option('-k, --api-key <key>', 'Anthropic API key (or set ANTHROPIC_API_KEY env var)')
     .option('-o, --output <formats>', 'Output formats: terminal,markdown,html,json (comma-separated)', 'terminal,markdown,html')
     .option('-c, --categories <cats>', 'Audit only specific categories (security,quality,performance,architecture,dependencies,testing,documentation)')
-    .option('-m, --model <model>', 'Claude model to use', 'claude-sonnet-4-6')
+    .option('-m, --model <model>', 'Claude model to use', 'claude-sonnet-5-5')
     .option('--max-files <n>', 'Maximum files to scan', '500')
     .option('--max-file-size <kb>', 'Maximum file size in KB to include', '100')
     .option('--static', 'Run static analysis only (no AI)')
@@ -95,7 +95,7 @@ Examples:
     apiKey: opts['apiKey'] as string | undefined,
     output: outputFormats,
     categories,
-    model: (opts['model'] as string) ?? 'claude-sonnet-4-6',
+    model: (opts['model'] as string) ?? 'claude-sonnet-5-5',
     maxFiles: parseInt(opts['maxFiles'] as string) || 500,
     maxFileSize: parseInt(opts['maxFileSize'] as string) || 100,
     noAi: !!opts['static'],
@@ -106,11 +106,6 @@ Examples:
     // Commander sets `trace` to false when --no-trace is passed, true otherwise.
     trace: opts['trace'] !== false,
   };
-
-  // Print banner (unless JSON mode or quiet)
-  if (!opts['json'] && !options.quiet) {
-    printBanner();
-  }
 
   const liveMode = !opts['json'] && !options.quiet;
 
@@ -168,7 +163,7 @@ Examples:
 
     if (liveMode) {
       if (!spinnerHandedOff) {
-        spinner.succeed(chalk.hex('#E8A87C')(`Audit complete in ${report.durationMs < 1000 ? report.durationMs + 'ms' : (report.durationMs / 1000).toFixed(1) + 's'}`));
+        spinner.stop();
       } else {
         // Logger already printed its own finish rule; just a blank line to breathe.
         console.log();
@@ -178,8 +173,14 @@ Examples:
     // Warnings go to stderr in every mode, so they reach CI logs without
     // corrupting --json output on stdout
     for (const warning of report.warnings ?? []) {
-      console.error(chalk.yellow(`  ⚠ ${warning}`));
+      console.error(chalk.yellow(`  warning: ${warning}`));
     }
+
+    // Paths outside the working directory read better absolute than as ../../..
+    const shown = (p: string): string => {
+      const rel = path.relative(process.cwd(), p);
+      return rel.startsWith('..') ? p : rel;
+    };
 
     // Generate outputs
     const reportDir = path.resolve(
@@ -201,7 +202,7 @@ Examples:
       }
       fs.writeFileSync(tracePath, lines.join('\n') + '\n', 'utf-8');
       if (!opts['json'] && !options.quiet) {
-        console.log(chalk.gray(`  🧭 Agent trace    → ${path.relative(process.cwd(), tracePath)}`));
+        console.log(chalk.gray(`  wrote ${shown(tracePath)}`));
       }
     }
 
@@ -213,7 +214,7 @@ Examples:
       const mdPath = path.join(reportDir, 'audit-report.md');
       generateMarkdownReport(report, mdPath);
       if (!opts['json'] && !options.quiet) {
-        console.log(chalk.gray(`  📄 Markdown report → ${path.relative(process.cwd(), mdPath)}`));
+        console.log(chalk.gray(`  wrote ${shown(mdPath)}`));
       }
     }
 
@@ -221,7 +222,7 @@ Examples:
       const htmlPath = path.join(reportDir, 'audit-report.html');
       generateHtmlReport(report, htmlPath);
       if (!opts['json'] && !options.quiet) {
-        console.log(chalk.gray(`  🌐 HTML report    → ${path.relative(process.cwd(), htmlPath)}`));
+        console.log(chalk.gray(`  wrote ${shown(htmlPath)}`));
       }
     }
 
@@ -232,7 +233,7 @@ Examples:
         const jsonPath = path.join(reportDir, 'audit-report.json');
         generateJsonReport(report, jsonPath);
         if (!options.quiet) {
-          console.log(chalk.gray(`  📦 JSON report    → ${path.relative(process.cwd(), jsonPath)}`));
+          console.log(chalk.gray(`  wrote ${shown(jsonPath)}`));
         }
       }
     }

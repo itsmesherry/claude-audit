@@ -23,7 +23,7 @@
   - Dark-mode friendly by default, matching the amber terminal theme.
 
 ## 4. Static analysis accuracy
-- A project with no findings scores 80/B in `--static` mode, because the categories only AI can judge get a fixed placeholder score. Score only the categories that were analysed.
+- A project with no findings scores 80/B in `--static` mode: every category starts at 80 rather than 100. Decide what a clean static scan should score.
 - `eval(` and similar rules match inside strings and comments.
 - "Deep nesting" counts braces, so object literals and JSX trigger it.
 - Dotfiles such as `.env` are never scanned, which is where real secrets usually are.

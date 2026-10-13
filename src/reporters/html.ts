@@ -17,7 +17,7 @@ function renderTrace(trace: AgentTrace): string {
 
   return `
   <div class="card" style="margin-bottom:2rem">
-    <h2>🧭 Agent Trace</h2>
+    <h2>Agent run</h2>
     <table class="info-table">
       <tr><td>Model</td><td><code>${esc(trace.model)}</code></td></tr>
       <tr><td>Turns</td><td>${s.turns} / ${trace.maxTurns}</td></tr>
@@ -29,16 +29,6 @@ function renderTrace(trace: AgentTrace): string {
   </div>`;
 }
 
-
-const CAT_ICONS: Record<AuditCategory, string> = {
-  security: '🔒',
-  quality: '📊',
-  performance: '⚡',
-  architecture: '🏗️',
-  dependencies: '📦',
-  testing: '🧪',
-  documentation: '📚',
-};
 
 function esc(s: unknown): string {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -67,16 +57,15 @@ export function generateHtmlReport(report: AuditReport, outputPath: string): voi
           <strong>${esc(f.title)}</strong>
         </div>
         <p class="finding-desc">${esc(f.description)}</p>
-        ${f.file ? `<div class="finding-file">📄 <code>${esc(f.file)}${f.line ? ':' + esc(f.line) : ''}</code></div>` : ''}
+        ${f.file ? `<div class="finding-file"><code>${esc(f.file)}${f.line ? ':' + esc(f.line) : ''}</code></div>` : ''}
         ${f.snippet ? `<pre class="snippet">${esc(f.snippet)}</pre>` : ''}
-        ${f.fix ? `<div class="finding-fix">✅ <strong>Fix:</strong> ${esc(f.fix)}</div>` : ''}
+        ${f.fix ? `<div class="finding-fix"><strong>Fix:</strong> ${esc(f.fix)}</div>` : ''}
       </div>`).join('');
 
     return `
     <div class="cat-card">
       <div class="cat-header">
         <div class="cat-title">
-          <span class="cat-icon">${CAT_ICONS[cat.category] ?? ''}</span>
           <h3>${esc(cat.category.charAt(0).toUpperCase() + cat.category.slice(1))}</h3>
         </div>
         <div class="cat-score">
@@ -90,7 +79,7 @@ export function generateHtmlReport(report: AuditReport, outputPath: string): voi
         <div class="score-bar-fill" style="width:${cat.score}%;background:${scoreColor(cat.score)}"></div>
       </div>
       ${cat.summary ? `<p class="cat-summary">${esc(cat.summary)}</p>` : ''}
-      ${cat.findings.length > 0 ? `<div class="findings-list">${findings}</div>` : '<p class="clean">✅ No issues found</p>'}
+      ${cat.findings.length > 0 ? `<div class="findings-list">${findings}</div>` : '<p class="clean">No findings</p>'}
     </div>`;
   }).join('');
 
@@ -192,8 +181,10 @@ export function generateHtmlReport(report: AuditReport, outputPath: string): voi
 
   <div class="header">
     <div class="logo"><span>Claude</span> Audit</div>
-    <div class="subtitle">AI-Powered Codebase Audit Report · ${esc(date)}</div>
+    <div class="subtitle">${esc(project.name)} · ${esc(date)}</div>
   </div>
+
+  ${(report.warnings ?? []).map(w => `<div class="card" style="margin-bottom:1rem;border-color:#eab308"><strong>Warning:</strong> ${esc(w)}</div>`).join('')}
 
   <div class="overview">
     <div class="card big-score">
@@ -216,19 +207,19 @@ export function generateHtmlReport(report: AuditReport, outputPath: string): voi
       <div class="stats-grid">
         <div class="stat-item">
           <div class="count" style="color:#ef4444">${report.criticalCount}</div>
-          <div class="slabel">🔴 Critical</div>
+          <div class="slabel">Critical</div>
         </div>
         <div class="stat-item">
           <div class="count" style="color:#f97316">${report.highCount}</div>
-          <div class="slabel">🟠 High</div>
+          <div class="slabel">High</div>
         </div>
         <div class="stat-item">
           <div class="count" style="color:#eab308">${report.mediumCount}</div>
-          <div class="slabel">🟡 Medium</div>
+          <div class="slabel">Medium</div>
         </div>
         <div class="stat-item">
           <div class="count" style="color:#60a5fa">${report.lowCount}</div>
-          <div class="slabel">🔵 Low</div>
+          <div class="slabel">Low</div>
         </div>
       </div>
     </div>
@@ -242,21 +233,21 @@ export function generateHtmlReport(report: AuditReport, outputPath: string): voi
       ${project.frameworks.length ? `<tr><td>Frameworks</td><td>${esc(project.frameworks.join(', '))}</td></tr>` : ''}
       <tr><td>Files Scanned</td><td>${project.totalFiles.toLocaleString()}</td></tr>
       <tr><td>Lines of Code</td><td>${project.totalLines.toLocaleString()}</td></tr>
-      <tr><td>Tests</td><td>${project.hasTests ? '✅ Yes' : '❌ No'}</td></tr>
+      <tr><td>Tests</td><td>${project.hasTests ? 'Yes' : 'No'}</td></tr>
       ${project.packageManager ? `<tr><td>Package Manager</td><td>${esc(project.packageManager)}</td></tr>` : ''}
-      <tr><td>Analysis</td><td>${report.agentic ? '✦ Agentic (Claude + tools)' : report.aiPowered ? '✦ AI-Powered (Claude)' : '⚡ Static Only'}</td></tr>
+      <tr><td>Analysis</td><td>${report.agentic ? 'Agentic audit' : report.aiPowered ? 'One-shot AI audit' : 'Static analysis only'}</td></tr>
     </table>
   </div>
 
   ${report.agentTrace ? renderTrace(report.agentTrace) : ''}
 
-  <div class="section-title">📈 Category Results</div>
+  <div class="section-title">Categories</div>
   <div class="categories">
     ${categoryCards}
   </div>
 
   <div class="footer">
-    Generated by <a href="https://github.com/itsmesherry/claude-audit">claude-audit</a> · AI-powered codebase auditor
+    Generated by <a href="https://github.com/itsmesherry/claude-audit">claude-audit</a> ${esc(report.version)}
   </div>
 </div>
 </body>

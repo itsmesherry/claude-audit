@@ -1,408 +1,171 @@
-<div align="center">
+<h1 align="center">claude-audit</h1>
 
-# Claude Audit
+<p align="center">
+  A command-line code auditor: fast static checks,<br>
+  plus an optional audit where Claude investigates the code with read-only tools.
+</p>
 
-**AI-Powered Codebase Auditor**
+<p align="center">
+  <a href="https://www.npmjs.com/package/claude-audit"><img alt="npm" src="https://img.shields.io/npm/v/claude-audit"></a>
+  <a href="https://github.com/itsmesherry/claude-audit/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/itsmesherry/claude-audit/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://www.npmjs.com/package/claude-audit"><img alt="Node" src="https://img.shields.io/node/v/claude-audit"></a>
+  <a href="https://www.npmjs.com/package/claude-audit"><img alt="Downloads" src="https://img.shields.io/npm/dm/claude-audit"></a>
+  <a href="https://github.com/itsmesherry/claude-audit/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue"></a>
+</p>
 
-*One command. Complete audit. Powered by Claude.*
+<p align="center">
+  <img src="media/demo.gif" alt="claude-audit --static run on a sample project" width="800" />
+</p>
 
-<!-- Re-record: brew install charmbracelet/tap/vhs && vhs media/demo.tape -->
-<img src="media/demo.gif" alt="claude-audit demo" width="800" />
+It scores a project per category and lists each finding with its file, line and a suggested fix. Reports come out in the terminal, and as Markdown, HTML or JSON. Without an API key it runs the static checks only, and nothing leaves your machine.
 
-
-[![npm version](https://img.shields.io/npm/v/claude-audit?color=06b6d4&style=flat-square)](https://www.npmjs.com/package/claude-audit)
-[![npm downloads](https://img.shields.io/npm/dm/claude-audit?color=4ade80&style=flat-square)](https://www.npmjs.com/package/claude-audit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square)](https://nodejs.org)
-[![Powered by Claude](https://img.shields.io/badge/Powered%20by-Claude%20AI-blueviolet?style=flat-square)](https://anthropic.com)
-
-</div>
-
----
-
-## What is Claude Audit?
-
-**Claude Audit** is a zero-config, AI-powered codebase auditor that runs like `npx claude-audit` and gives you the kind of comprehensive audit report that would cost thousands from a consulting firm.
-
-It combines **static analysis** (fast, no API key needed), **one-shot AI review**, and a true **agentic audit loop** where Claude actively investigates your codebase — reading files, searching for patterns, and verifying every finding with evidence — across 7 dimensions:
-
-| Category | What It Checks |
-|----------|---------------|
-| 🔒 **Security** | Hardcoded secrets, SQL injection, XSS, vulnerable auth patterns, OWASP Top 10 |
-| 📊 **Code Quality** | Complexity, duplication, naming, dead code, anti-patterns |
-| ⚡ **Performance** | N+1 queries, memory leaks, inefficient algorithms, blocking I/O |
-| 🏗️ **Architecture** | Modularity, separation of concerns, coupling, scalability |
-| 📦 **Dependencies** | Known-vulnerable and deprecated packages, bloat, supply chain risks |
-| 🧪 **Testing** | Coverage gaps, missing tests, test quality, flaky patterns |
-| 📚 **Documentation** | Missing docs, stale comments, API documentation gaps |
-
----
-
-## Quick Start
+## Usage
 
 ```bash
-# Zero install — just run it (agentic audit when API key is set)
-ANTHROPIC_API_KEY=sk-ant-... npx claude-audit
-
-# Static only — no API key required
+# Static checks only. No API key, nothing leaves your machine.
 npx claude-audit --static
 
-# Specific project path
-npx claude-audit ./path/to/project
-
-# One-shot AI mode — cheaper & faster, shallower than agentic
-npx claude-audit --fast
-
-# Control the agent budget
-npx claude-audit --max-turns 40 --max-budget 1000000
-
-# Output to HTML + Markdown reports
-npx claude-audit --output terminal,html,markdown
-
-# CI/CD mode — JSON on stdout, exits 1 on critical issues
-npx claude-audit --json
+# Full audit: static checks, then Claude investigates the project.
+ANTHROPIC_API_KEY=sk-ant-... npx claude-audit ./path/to/project
 ```
 
----
+Node 18 or newer. To install it instead of using `npx`: `npm install -g claude-audit`.
 
-## Installation
+Report files are written to `.claude-audit/` in the audited project, so add that directory to your `.gitignore`.
 
-```bash
-# Global install
-npm install -g claude-audit
+## What it checks
 
-# Then use anywhere
-claude-audit
-claude-audit ./my-project
-```
+There are three modes.
 
----
+| Mode | How to run it | What happens |
+|------|---------------|--------------|
+| Static | `--static`, or no API key | Pattern-based rules only. Runs in milliseconds, offline. |
+| Agentic | the default with an API key | Claude gets read-only tools (list files, search, read a file) and decides what to look at. Slower and costs tokens, but findings cite the code they are based on. |
+| One-shot | `--fast` | One API call with a digest of the project. Cheaper than agentic, shallower. |
 
-## Example Output
+The static rules cover:
 
-```
-╔══════════════════════════════════════════════════════════╗
-║  ██████╗██╗      █████╗ ██╗   ██╗██████╗ ███████╗       ║
-║   ...                                                    ║
-║   AI-Powered Codebase Auditor  ·  v1.0.0                 ║
-╚══════════════════════════════════════════════════════════╝
+- **Security:** hardcoded API keys, passwords, JWT secrets, AWS, GitHub, Anthropic and OpenAI keys, private key blocks, database URLs with credentials, `eval()`, SQL built by string concatenation, `dangerouslySetInnerHTML`, disabled TLS verification, `shell=True`, `Math.random()` used for security.
+- **Dependencies:** a small built-in list of known-vulnerable and deprecated packages (lodash, axios, minimist, moment, request and a few more), and very large dependency counts.
+- **Quality, testing, documentation:** very long files, deep nesting, debug output left in shipped code, duplicate imports, missing tests, large undocumented files.
 
-╭─────────────────────────────── AUDIT REPORT ─────────────────────────────────╮
-│  Project: my-saas-app                                                        │
-│  Path:    /Users/dev/my-saas-app                                             │
-│  Scanned: 247 files · 18,432 lines                                          │
-│  Stack:   TypeScript, Python                                                 │
-│  Frameworks: React, FastAPI, Prisma                                          │
-│                                                                              │
-│  ┌────────────────────────────────────┐                                     │
-│  │   OVERALL SCORE: 64/100  Grade: C  │                                     │
-│  └────────────────────────────────────┘                                     │
-│                                                                              │
-│  ✦ AI-Powered Analysis (Claude)  ·  Duration: 12.4s                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
+Performance and architecture have no static rules. They are only scored when the AI audit runs.
 
- CATEGORY SCORES
+With an API key, Claude reviews all seven categories: security, quality, performance, architecture, dependencies, testing and documentation.
 
-  🔒  Security        ██████░░░░░░░░░░░░░░  42/100  [ D ]  · 3 issues
-  📊  Code Quality    ████████████░░░░░░░░  71/100  [ C ]  · 5 issues
-  ⚡  Performance     █████████████░░░░░░░  78/100  [ C ]  · 2 issues
-  🏗️   Architecture    ██████████░░░░░░░░░░  60/100  [ D ]  · 4 issues
-  📦  Dependencies    ████████░░░░░░░░░░░░  55/100  [ F ]  · 7 issues
-  🧪  Testing         ████████░░░░░░░░░░░░  40/100  [ F ]  · 2 issues
-  📚  Documentation   ████████████░░░░░░░░  72/100  [ C ]  · 1 issue
+### What it is not
 
- FINDINGS SUMMARY
+The static rules are regular expressions. They catch common mistakes quickly, and they also produce false positives, for example `eval(` inside a comment. The dependency list is short and hand-maintained, so it is no replacement for `npm audit` or a real vulnerability scanner. The AI audit is a second opinion from a model, with the usual caveat that it can be wrong. Known gaps are listed in [TODO.md](TODO.md).
 
-  🔴 Critical: 2      🟠 High: 4      🟡 Medium: 8      🔵 Low: 10
+## Sample output
 
-
-  🚨   CRITICAL   CRITICAL ISSUES (2)
-  ──────────────────────────────────────────────────────────────────────
-
-    🔒 Hardcoded JWT Secret
-    Potential Hardcoded JWT Secret found in source code.
-    File: src/config/auth.ts:14
-    Code: jwt_secret = "super-secret-key-dont-tell"
-    Fix:  Use a randomly generated 256-bit secret stored in environment variables.
-
-    📦 Vulnerable Dependency: axios
-    axios@0.21.0 — SSRF vulnerability in versions < 0.21.2
-    Fix:  Upgrade to axios@0.21.2 or later
-```
-
----
-
-## Features
-
-### 🤖 Three Analysis Modes
-| Mode | Flag | When to use |
-|------|------|-------------|
-| **Static** | `--static` | No API key, offline, CI pre-checks. Pattern-based rules. |
-| **One-shot AI** | `--fast` | Cheap & fast Claude review of a files digest. |
-| **Agentic** *(default when `ANTHROPIC_API_KEY` is set)* | *(default)* | Claude actively investigates via tools — reads files, runs searches, verifies every finding with evidence. Deepest signal, highest accuracy. |
-
-### 🧭 Agentic Audit — How it works
-When an API key is available, Claude Audit runs a **manual agentic loop**: Claude is given a read-only, sandboxed tool set and orchestrates its own investigation.
-
-**Tools Claude has access to:**
-- `get_project_summary` — languages, frameworks, test setup
-- `get_static_findings` — deterministic findings to build on (never duplicate)
-- `read_dependency_manifest` — `package.json`, `requirements.txt`, etc.
-- `list_files` — glob-based discovery
-- `search_code` — literal or regex search across the repo
-- `read_file` — line-range reads with numbered output
-- `finalize_audit` — structured submission of findings
-
-**Production guardrails (all enabled by default):**
-- 🛡️ **Path sandboxing** — every file access is resolved against the project root; traversal (`..`), absolute-path escape, symlinks that point outside the project, and null-byte smuggling are rejected
-- 🔒 **Read-only by construction** — no tool can write, spawn shells, or hit the network
-- 🔁 **Repetition circuit breaker** — same tool call 3× in the last 6 calls aborts the loop before it wastes budget
-- 🎯 **Iteration cap** — hard ceiling of 25 tool-use turns (configurable via `--max-turns`)
-- 💰 **Token budget** — 500k-token hard ceiling per audit (configurable via `--max-budget`)
-- 📉 **Prompt caching** — stable system prompt + tool defs are cached (typically 80%+ cache hit rate)
-- ⏱️ **Per-turn streaming** — no SDK HTTP timeouts on long reasoning turns
-- 🧯 **Errors as results** — tool failures are returned to Claude as recoverable results; the loop never crashes
-- 📏 **Result size caps** — 16 KB per tool result, 200 KB per file read (Claude is told to use ranges)
-- ⏳ **Budget-aware nudges** — at 70% of the budget Claude is reminded to finalise instead of over-exploring
-- 🧭 **Full audit trail** — every tool call is recorded to `.claude-audit/agent-trace.jsonl` (turn, input, output preview, duration, error flag). Disable with `--no-trace`.
-- 📺 **Live streaming tree view** — the CLI prints each turn and tool call as it happens (no more opaque spinner); add `-V / --verbose` for per-turn token spend, tool durations, and result previews.
-
-**Why an agentic audit beats a one-shot one:**
-| | One-shot (`--fast`) | Agentic *(default)* |
-|---|---|---|
-| Evidence quality | Limited to file digest sent in the prompt | Claude reads actual files, line-by-line, and verifies each finding |
-| Cross-file insight | Hard — small context window | Native — Claude pulls what it needs |
-| False positives | Higher (inference from partial view) | Lower (must cite file:line + snippet) |
-| Cost | Lower, bounded | Higher but **capped** via `--max-budget` |
-| Latency | Single API call | Multiple turns (still ~1-3 min typical) |
-
-### 📄 Multiple Output Formats
-| Format | Flag | Description |
-|--------|------|-------------|
-| Terminal | `--output terminal` | Beautiful colored output (default) |
-| Markdown | `--output markdown` | Saves `audit-report.md` |
-| HTML | `--output html` | Beautiful standalone HTML report |
-| JSON | `--output json` | Machine-readable, perfect for CI/CD |
-
-### 🔧 Highly Configurable
-```bash
-# Static analysis only (no AI, no API key)
-claude-audit --static
-
-# One-shot AI mode (no agentic loop, cheaper)
-claude-audit --fast
-
-# Specific categories only
-claude-audit --categories security,dependencies
-
-# Control scope
-claude-audit --max-files 1000 --max-file-size 200
-
-# Tune the agent
-claude-audit --max-turns 40 --max-budget 1000000
-claude-audit --no-trace          # skip agent-trace.jsonl
-
-# Use a specific Claude model
-claude-audit --model claude-opus-4-6
-```
-
-### ⚙️ CI/CD Integration
-
-**GitHub Action (recommended):**
-```yaml
-- name: Claude Audit
-  uses: itsmesherry/claude-audit@v0
-  with:
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # optional
-    fail-on-critical: true
-```
-
-The action outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings` and `report-json` for downstream steps, and writes a summary table to the workflow run. Without an `api-key` it runs static analysis only. `@v0` follows the latest 0.x release; pin a full version such as `@v0.3.0` if you prefer.
-
-**Manual npx usage:**
-```yaml
-- name: Run Claude Audit
-  run: npx claude-audit --json > audit.json
-  env:
-    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-```
-
-**Pre-commit hook:**
-```bash
-#!/bin/sh
-npx claude-audit --static --quiet --json | \
-  node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.exit(r.criticalCount > 0 ? 1 : 0)"
-```
-
----
-
-## What Gets Audited
-
-### 🔒 Security
-- Hardcoded API keys, secrets, passwords, tokens
-- AWS/GitHub/Anthropic/OpenAI credentials in source
-- SQL injection patterns (string concatenation in queries)
-- `eval()` usage, dangerous `innerHTML` patterns
-- Disabled SSL/TLS verification
-- Command injection via `subprocess(shell=True)`
-- Insecure cryptographic functions (`Math.random()` for security)
-- JWT secret exposure
-- Database connection strings with credentials
-
-### 📦 Dependencies
-- Packages with known CVEs, from a small built-in list (lodash, axios, minimist, etc.)
-- Deprecated/unmaintained packages (moment, request)
-- Excessive dependency count
-
-### 📊 Code Quality
-- Files > 500 lines (consider splitting)
-- Deep nesting (>5 levels)
-- Excessive `console.log` usage
-- Duplicate imports
-- Missing documentation on large files
-- Test coverage ratio
-
----
-
-## How It Works
+From `npx claude-audit --static examples/shop-api` (the sample project is in this repository):
 
 ```
-Your Codebase
-     │
-     ▼
-┌─────────────────────────────────┐
-│         File Scanner            │
-│  • Respects .gitignore          │
-│  • Detects languages/frameworks │
-│  • Reads source files           │
-└─────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────┐
-│       Static Analyzers          │
-│  • Secret detection (15 rules)  │
-│  • Dependency vulnerability DB  │
-│  • Complexity & quality checks  │
-└─────────────────────────────────┘
-     │
-     ▼ (if ANTHROPIC_API_KEY set — default path)
-┌─────────────────────────────────────────────────┐
-│          Claude — Agentic Audit Loop            │
-│                                                 │
-│   ┌─────────────────────────────────────┐      │
-│   │  Claude reasons → picks a tool call │◄─┐   │
-│   └─────────────────────────────────────┘  │   │
-│                 │                           │   │
-│                 ▼                           │   │
-│   ┌─────────────────────────────────────┐  │   │
-│   │  Sandboxed executor runs the tool   │  │   │
-│   │  (list_files / search_code /        │  │   │
-│   │   read_file / ...) — read-only      │  │   │
-│   └─────────────────────────────────────┘  │   │
-│                 │                           │   │
-│                 └───────── tool_result ─────┘   │
-│                                                 │
-│   Guardrails:  max-turns · max-budget ·         │
-│   repetition detector · path sandbox · trace    │
-│                                                 │
-│   Terminates when Claude calls finalize_audit   │
-└─────────────────────────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────────┐
-│         Report Generator        │
-│  • Terminal (colored)           │
-│  • audit-report.md              │
-│  • audit-report.html            │
-│  • audit-report.json            │
-│  • agent-trace.jsonl            │
-└─────────────────────────────────┘
+  shop-api  examples/shop-api
+  5 files, 64 lines · JSON, JavaScript, Express · static analysis only
+
+   CRITICAL  Hardcoded JWT Secret  src/config.js:5
+             jwt_secret: "************",
+             fix: Use a randomly generated 256-bit secret stored in environment variables.
+
+   HIGH      Database Connection String with Credentials  src/config.js:6
+             databaseUrl: "************",
+             fix: Use environment variable: DATABASE_URL=... and read via process.env.DATABASE_URL
+
+   HIGH      SQL String Concatenation (Injection Risk)  src/db.js:7
+             const result = await pool.query("SELECT * FROM users WHERE email = '" + email + "'");
+             fix: Use parameterized queries or an ORM. Never concatenate user input into SQL strings.
+
+   HIGH      eval() Usage  src/routes/users.js:14
+             const result = eval(req.body.expression);
+             fix: Avoid eval(). Use JSON.parse() for JSON, or restructure to avoid dynamic code execution.
+
+   HIGH      Vulnerable Dependency: lodash
+             lodash@4.17.15 — Prototype pollution CVE-2021-23337
+             fix: Upgrade to lodash@4.17.21 or later
+
+  Security       ██████░░░░░░░░░░░░░░   30  F  4 findings
+  Quality        ████████████████░░░░   80  B
+  Dependencies   ██████████████░░░░░░   70  C  1 finding
+  Testing        ████████████████░░░░   80  B
+  Documentation  ████████████████░░░░   80  B
+
+  Score 61/100 (C)  1 critical, 4 high, 0 medium, 0 low · 16ms
 ```
 
-### Trace artifact
-Every agentic audit produces `.claude-audit/agent-trace.jsonl` with one event per line:
-```jsonl
-{"kind":"meta","model":"claude-sonnet-4-6","maxTurns":25,"maxBudgetTokens":500000,"summary":{...}}
-{"kind":"call","turn":1,"toolUseId":"toolu_...","name":"get_project_summary","input":{},"outputPreview":"...","outputBytes":342,"durationMs":2,"isError":false,"timestamp":"2026-04-23T..."}
-{"kind":"call","turn":2,"toolUseId":"toolu_...","name":"search_code","input":{"pattern":"eval("},...}
-...
-```
-Useful for debugging, cost analysis, and compliance/audit-trail requirements.
+Secrets are masked in every report.
 
----
-
-## Supported Languages & Ecosystems
-
-TypeScript · JavaScript · Python · Go · Rust · Java · Kotlin · Swift ·  
-C/C++ · C# · PHP · Ruby · Scala · Elixir · Haskell · Lua · R ·  
-SQL · Shell · YAML · Terraform · Dockerfile · Vue · Svelte · Astro
-
----
-
-## Options Reference
+## Options
 
 ```
 Usage: claude-audit [options] [path]
 
-Arguments:
-  path                      Path to the project to audit (default: ".")
+  path                      Project to audit (default: ".")
 
-Options:
-  -v, --version             Output version
   -k, --api-key <key>       Anthropic API key (or set ANTHROPIC_API_KEY)
-  -o, --output <formats>    Output formats: terminal,markdown,html,json (default: "terminal,markdown,html")
-  -c, --categories <cats>   Audit specific categories only
-  -m, --model <model>       Claude model (default: "claude-sonnet-4-6")
-  --max-files <n>           Max files to scan (default: 500)
-  --max-file-size <kb>      Max file size in KB (default: 100)
-  --static                  Static analysis only (no AI)
-  --fast                    One-shot AI mode (no agentic loop)
-  --max-turns <n>           Agentic iteration cap (default: 25)
-  --max-budget <tokens>     Agentic token ceiling (default: 500000)
-  --no-trace                Don't write agent-trace.jsonl
-  -V, --verbose             Show per-turn token spend, tool durations, and result previews
-  --output-dir <dir>        Directory for report files (default: .claude-audit/)
-  -q, --quiet               Suppress progress output
-  --json                    Output JSON to stdout (CI/CD mode)
-  -h, --help                Display help
+  -m, --model <model>       Claude model (default: "claude-sonnet-5-5")
+  --static                  Static analysis only
+  --fast                    One-shot AI mode instead of the agentic audit
+  -c, --categories <list>   Only these categories, comma-separated
+  -o, --output <formats>    terminal, markdown, html, json (default: "terminal,markdown,html")
+  --output-dir <dir>        Where report files go (default: .claude-audit/)
+  --json                    Print the JSON report to stdout and nothing else
+  --max-files <n>           Maximum files to scan (default: 500)
+  --max-file-size <kb>      Skip files larger than this (default: 100)
+  --max-turns <n>           Agentic mode: maximum tool-use turns (default: 25)
+  --max-budget <tokens>     Agentic mode: token ceiling, cached tokens included (default: 500000)
+  --no-trace                Agentic mode: do not write agent-trace.jsonl
+  -V, --verbose             Agentic mode: show token use and tool results per turn
+  -q, --quiet               No progress output
+  -v, --version             Print the version
 ```
 
----
-
-## Exit Codes
+### Exit codes
 
 | Code | Meaning |
 |------|---------|
-| `0` | Audit passed — no critical issues |
+| `0` | No critical findings |
 | `1` | At least one critical finding |
-| `2` | Audit failed (error), or an unknown `--output` / `--categories` value |
+| `2` | The audit could not run, or an option had an unknown value |
 
-If the AI step fails or runs out of budget before finishing, the report falls back to static analysis only: `aiPowered` is `false`, the reason is listed in `warnings` in the JSON report, and a warning is printed to stderr. Secrets found in your code are masked in every report.
+If the AI step fails or runs out of budget, the report falls back to the static results. It says so in a warning on stderr and in the `warnings` field of the JSON report, and `aiPowered` is `false`.
 
----
+## The agentic audit
+
+Claude works through a fixed set of read-only tools: `get_project_summary`, `get_static_findings`, `read_dependency_manifest`, `list_files`, `search_code`, `read_file`, and `finalize_audit` to submit the result. The limits around it:
+
+- Every path is checked against the project root. `..`, absolute paths, and symlinks that lead outside the project are refused.
+- No tool can write files, run commands or reach the network.
+- A run stops after `--max-turns` turns or `--max-budget` tokens, or when Claude keeps repeating the same tool call.
+- A tool result is capped at 16 KB and a file read at 200 KB.
+- Every tool call is recorded in `.claude-audit/agent-trace.jsonl` (turn, input, a preview of the output, duration), unless you pass `--no-trace`.
+
+Your code is sent to the Anthropic API in the two AI modes. It is not sent anywhere in `--static` mode.
+
+## CI
+
+As a GitHub Action:
+
+```yaml
+- uses: itsmesherry/claude-audit@v0
+  with:
+    api-key: ${{ secrets.ANTHROPIC_API_KEY }}   # optional; static only without it
+    fail-on-critical: true
+```
+
+The action sets the outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings` and `report-json`, and adds a summary table to the workflow run. `@v0` follows the latest 0.x release; pin a full version such as `@v0.3.0` if you prefer.
+
+Or call the CLI yourself:
+
+```yaml
+- run: npx claude-audit --static --json > audit.json
+```
 
 ## Contributing
 
-```bash
-git clone https://github.com/itsmesherry/claude-audit
-cd claude-audit
-npm install
-npm run dev -- ./some-project   # test against a project
-npm run build                   # compile TypeScript
-```
-
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, [TODO.md](TODO.md) for known gaps, and [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
-
----
+See [CONTRIBUTING.md](CONTRIBUTING.md). Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
 MIT © [Shehryar Sohail](https://github.com/itsmesherry)
-
----
-
-<div align="center">
-
-**Built with ❤️ using Claude AI · [Report an Issue](https://github.com/itsmesherry/claude-audit/issues) · [Star on GitHub ⭐](https://github.com/itsmesherry/claude-audit)**
-
-</div>

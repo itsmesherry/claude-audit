@@ -1,7 +1,7 @@
 {
   "name": "claude-audit",
   "version": "0.3.0",
-  "description": "AI-powered codebase auditor — security, quality, performance, architecture & more",
+  "description": "Code auditor: fast static checks, plus an optional Claude-driven audit with read-only tools",
   "keywords": [
     "claude",
     "anthropic",
@@ -48,7 +48,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "boxen": "^5.1.2",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
     "fast-glob": "^3.3.2",

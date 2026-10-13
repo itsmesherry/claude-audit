@@ -1,44 +1,31 @@
-# VHS tape file — generates media/demo.gif
-# Install: brew install charmbracelet/tap/vhs
-# Run:     npm link && vhs media/demo.tape  (from project root)
+# Generates media/demo.gif from a real run against examples/shop-api.
+# Install: brew install vhs
+# Run:     npm run build && vhs media/demo.tape   (from the project root)
 
 Output media/demo.gif
 
 Set Shell "bash"
-Set FontSize 14
+Set FontSize 15
 Set Width 1200
 Set Height 800
+Set Padding 24
 Set Theme "Catppuccin Mocha"
-Set Padding 20
-Set TypingSpeed 60ms
-Set Framerate 12
+Set TypingSpeed 70ms
+Set Framerate 15
 
-# Silently set up: link the package + alias to delayed output wrapper
+# Use the local build under the name people will type. The real run prints
+# everything in about 20 ms, which reads as a flash in a GIF, so the lines are
+# shown 60 ms apart. The text itself is the tool's unmodified output.
 Hide
-Type "npm link --force 2>/dev/null"
+Type `claude-audit() { FORCE_COLOR=3 node dist/index.js "$@" 2>/dev/null | while IFS= read -r line; do echo "$line"; sleep 0.06; done; }`
 Enter
-Sleep 4s
-Type "alias claude-audit='./demo-helper.sh'"
+Type "PS1='$ ' && clear"
 Enter
-Sleep 0.3s
-Type "clear"
-Enter
-Sleep 0.5s
+Sleep 500ms
 Show
 
-# Let the terminal settle
-Sleep 0.5s
-
-# Type the command (what users run after: npm install -g claude-audit)
-Type "claude-audit --static ./my-saas-app"
-Sleep 0.8s
-Enter
-
-# Output scrolls in line-by-line (~6.4s for 160 lines at 40ms each)
-Sleep 8s
-
-# Hold so viewers can read the final findings
-Sleep 5s
-
-# Final pause
 Sleep 1s
+Type "claude-audit --static examples/shop-api"
+Sleep 800ms
+Enter
+Sleep 9s

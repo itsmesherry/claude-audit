@@ -24,14 +24,6 @@ const SECRET_PATTERNS: SecretPattern[] = [
     fix: 'Move to environment variables: process.env.API_KEY',
   },
   {
-    id: 'SEC-002',
-    secret: true,
-    name: 'Hardcoded Secret / Password',
-    regex: /(?:secret|password|passwd|pwd)\s*[:=]\s*["']([^"']{8,})["']/gi,
-    severity: 'critical',
-    fix: 'Use environment variables or a secrets manager (e.g. HashiCorp Vault, AWS Secrets Manager)',
-  },
-  {
     id: 'SEC-003',
     secret: true,
     name: 'Anthropic / OpenAI Key Exposed',
@@ -78,6 +70,14 @@ const SECRET_PATTERNS: SecretPattern[] = [
     regex: /(?:mongodb|mysql|postgres|postgresql):\/\/[^:]+:[^@]+@/gi,
     severity: 'high',
     fix: 'Use environment variable: DATABASE_URL=... and read via process.env.DATABASE_URL',
+  },
+  {
+    id: 'SEC-002',
+    secret: true,
+    name: 'Hardcoded Secret / Password',
+    regex: /(?:secret|password|passwd|pwd)\s*[:=]\s*["']([^"']{8,})["']/gi,
+    severity: 'critical',
+    fix: 'Use environment variables or a secrets manager (e.g. HashiCorp Vault, AWS Secrets Manager)',
   },
   {
     id: 'SEC-009',
@@ -150,15 +150,24 @@ export function maskTokens(text: string): string {
     .replace(/(AKIA|ghp_|ghs_|github_pat_|\bsk-ant-|\bsk-)[A-Za-z0-9_-]{8,}/g, '$1****');
 }
 
+function holdsCredential(line: string): boolean {
+  return SECRET_PATTERNS.some(p => {
+    p.regex.lastIndex = 0;
+    return !!p.secret && p.regex.test(line);
+  });
+}
+
+/** Mask code quoted by the model: full masking on lines that hold a credential. */
+export function maskSnippet(snippet: string): string {
+  return snippet.split('\n').map(l => (holdsCredential(l) ? maskLine(l) : maskTokens(l))).join('\n');
+}
+
 function maskLine(line: string): string {
   const stars = (m: string): string => `"${'*'.repeat(Math.min(m.length - 2, 12))}"`;
   const masked = maskTokens(line);
   // Decided per line, not per rule: a line can match a credential rule and
   // another rule (eval, SQL), and both findings show the same line
-  const isSecret = SECRET_PATTERNS.some(p => {
-    p.regex.lastIndex = 0;
-    return !!p.secret && p.regex.test(line);
-  });
+  const isSecret = holdsCredential(line);
   return isSecret
     ? masked.replace(/(["'`])(?:(?!\1).){8,}\1/g, stars)
     : masked.replace(/["'][A-Za-z0-9_\-./+]{8,}["']/g, stars);
@@ -181,6 +190,7 @@ export function analyzeSecrets(files: ScannedFile[]): Finding[] {
     ) continue;
 
     const lines = file.content.split('\n');
+    const credentialLines = new Set<number>();
 
     for (const pattern of SECRET_PATTERNS) {
       // Reset regex state
@@ -191,6 +201,12 @@ export function analyzeSecrets(files: ScannedFile[]): Finding[] {
         pattern.regex.lastIndex = 0;
 
         if (pattern.regex.test(line)) {
+          // One credential finding per line: the specific rules come first in
+          // the list, so "jwt_secret = ..." is not also reported as a password
+          if (pattern.secret) {
+            if (credentialLines.has(lineIdx)) continue;
+            credentialLines.add(lineIdx);
+          }
           const maskedLine = maskLine(line);
 
           findings.push({
