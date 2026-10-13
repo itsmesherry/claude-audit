@@ -1,6 +1,6 @@
 {
   "name": "claude-audit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Code auditor: fast static checks, plus an optional Claude-driven audit with read-only tools",
   "keywords": [
     "claude",

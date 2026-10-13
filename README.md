@@ -154,7 +154,7 @@ As a GitHub Action:
     fail-on-critical: true
 ```
 
-The action sets the outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings` and `report-json`, and adds a summary table to the workflow run. `@v0` follows the latest 0.x release; pin a full version such as `@v0.3.0` if you prefer.
+The action sets the outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings` and `report-json`, and adds a summary table to the workflow run. `@v0` follows the latest 0.x release; pin a full version such as `@v0.4.0` if you prefer.
 
 Or call the CLI yourself:
 
