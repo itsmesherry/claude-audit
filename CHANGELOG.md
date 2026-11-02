@@ -7,6 +7,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-02
+
 ### Added
 
 - The agentic audit can dismiss static findings it has read the code for and
@@ -24,6 +26,13 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   same CWE and at least the same severity, is shown once, as the AI finding.
 - The agentic audit reports its coverage: the areas it checked and the ones it
   did not get to. It appears in the reports and as `coverage` in the JSON.
+
+### Changed
+
+- Agentic audits can report fewer findings than 0.4.0 on the same code,
+  because of the dismissals and merged duplicates above. Critical findings are
+  never dismissed or downgraded, so the exit code for critical findings is
+  unaffected.
 
 ## [0.4.0] - 2026-10-13
 
@@ -122,7 +131,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - First release.
 
-[Unreleased]: https://github.com/itsmesherry/claude-audit/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/itsmesherry/claude-audit/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/itsmesherry/claude-audit/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/itsmesherry/claude-audit/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/itsmesherry/claude-audit/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/itsmesherry/claude-audit/compare/v0.2.1...v0.2.2
