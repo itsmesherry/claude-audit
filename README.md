@@ -139,6 +139,8 @@ Claude works through a fixed set of read-only tools: `get_project_summary`, `get
 - No tool can write files, run commands or reach the network.
 - A run stops after `--max-turns` turns or `--max-budget` tokens, or when Claude keeps repeating the same tool call.
 - A tool result is capped at 16 KB and a file read at 200 KB.
+- Static findings are regular expressions, so Claude may dismiss one after reading the code behind it. Dismissed findings are listed in every report with a reason and are left out of the scores. Critical findings cannot be dismissed.
+- The report lists what Claude checked and what it did not get to.
 - Every tool call is recorded in `.claude-audit/agent-trace.jsonl` (turn, input, a preview of the output, duration), unless you pass `--no-trace`.
 
 Your code is sent to the Anthropic API in the two AI modes. It is not sent anywhere in `--static` mode.

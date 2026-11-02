@@ -5,7 +5,7 @@
 // What the model returns is untrusted input: it may be shaped wrongly, and a
 // hostile repository can steer it. Only well-typed fields get into a report.
 
-import type { Finding, AuditCategory, Severity } from '../../core/types';
+import type { Finding, AuditCategory, AuditCoverage, DismissedFinding, Severity } from '../../core/types';
 import { maskSnippet, maskTokens } from '../static/secrets';
 
 const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'info'];
@@ -47,4 +47,32 @@ export function normalizeFindings(raw: unknown, category: AuditCategory, idPrefi
   return Array.isArray(raw)
     ? raw.map((f, i) => normalizeFinding(f, category, `${idPrefix}-${i + 1}`))
     : [];
+}
+
+/**
+ * Resolve the model's dismissals to the static findings they name. A bad ref
+ * or an empty reason is dropped. Critical findings stay: a hostile repository
+ * could ask the model to dismiss the finding that would fail the CI run.
+ */
+export function normalizeDismissals(raw: unknown, staticFindings: Finding[]): DismissedFinding[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<Finding>();
+  const out: DismissedFinding[] = [];
+  for (const item of raw) {
+    const d = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+    const finding = typeof d['ref'] === 'number' && Number.isInteger(d['ref']) ? staticFindings[d['ref'] - 1] : undefined;
+    const reason = text(d['reason']);
+    if (!finding || !reason || finding.severity === 'critical' || seen.has(finding)) continue;
+    seen.add(finding);
+    out.push({ finding, reason });
+  }
+  return out;
+}
+
+export function normalizeCoverage(raw: unknown): AuditCoverage | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const c = raw as Record<string, unknown>;
+  const list = (v: unknown) => (Array.isArray(v) ? v.map(text).filter((s): s is string => !!s) : []);
+  const coverage = { checked: list(c['checked']), notChecked: list(c['not_checked']) };
+  return coverage.checked.length || coverage.notChecked.length ? coverage : undefined;
 }

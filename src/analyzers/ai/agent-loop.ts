@@ -27,6 +27,8 @@ import type {
   Finding,
   ScannedFile,
   CategoryScore,
+  AuditCoverage,
+  DismissedFinding,
 } from '../../core/types';
 import { scoreToGrade } from '../../core/types';
 import {
@@ -35,8 +37,9 @@ import {
   type ToolContext,
   type ToolName,
   type FinalAuditPayload,
+  type CategoryPayload,
 } from './tools';
-import { normalizeFindings, normalizeScore } from './normalize';
+import { normalizeCoverage, normalizeDismissals, normalizeFindings, normalizeScore } from './normalize';
 
 // ── Tuning constants ─────────────────────────────
 const REPETITION_WINDOW = 6;       // look at last 6 tool calls
@@ -60,12 +63,13 @@ Your job is to investigate the codebase using the provided tools, then submit a 
    - Testing: missing critical-path tests, flaky patterns (hardcoded ports, sleeps).
    - Documentation: missing READMEs for non-trivial modules, undocumented public APIs.
 4. **Verify.** When you find a candidate issue via search, use \`read_file\` to confirm by reading the surrounding context. Never report a finding you have not verified in the actual source.
-5. **Submit.** Call \`finalize_audit\` exactly once with your complete findings.
+5. **Submit.** Call \`finalize_audit\` exactly once with your complete findings, plus \`coverage\`: what you checked and what you did not get to.
 
 ## Standards
 
 - **Evidence required.** Every finding you submit must include \`file\` and \`line\` when applicable, plus a real \`snippet\`. If you could not verify it, do not submit it.
 - **Do not duplicate static findings.** You will have seen them via \`get_static_findings\`. Build on them, don't repeat them.
+- **Weed out static false positives.** Static findings are regex matches. When you read the code behind one and it is not a real issue (a match in a comment, a test fixture, a placeholder), list its #number in \`dismissed_static\` with the reason. Only dismiss what you have read.
 - **Be specific, not generic.** "Add input validation" is weak. "Sanitize \`userInput\` at src/api/posts.ts:42 before passing to \`db.query\` — use parameterized queries" is strong.
 - **Calibrate severity honestly.** \`critical\` = likely exploit/data loss in prod. \`high\` = meaningful risk. \`medium\` = quality/maintainability. \`low\` = nit/minor. \`info\` = observation.
 - **Budget respect.** You have a bounded number of tool calls. Prioritise high-signal investigation over exhaustive exploration.
@@ -124,6 +128,8 @@ export interface AgentLoopResult {
   trace: AgentTrace;
   /** False when the loop ended without finalize_audit; categories are then placeholders. */
   finalized: boolean;
+  dismissed: DismissedFinding[];
+  coverage?: AuditCoverage;
 }
 
 // ── Input → project context ──────────────────────
@@ -475,7 +481,15 @@ export async function runAgentLoop(
   };
 
   const categories = buildCategoriesFromFinal(finalPayload, opts.filterCategories);
-  return { categories, trace: agentTrace, finalized: finalPayload !== null };
+  // TS narrows finalPayload to null: it is only assigned inside the onFinalize closure
+  const final = finalPayload as FinalAuditPayload | null;
+  return {
+    categories,
+    trace: agentTrace,
+    finalized: final !== null,
+    dismissed: normalizeDismissals(final?.dismissed_static, ctx.staticFindings),
+    coverage: normalizeCoverage(final?.coverage),
+  };
 }
 
 // ── Finalization → CategoryScore[] ───────────────
@@ -501,7 +515,7 @@ function buildCategoriesFromFinal(
   // A category the model left out is left out of the report too: the caller
   // warns about it rather than showing a score nobody gave
   return order.flatMap(cat => {
-    const data = payload[cat as keyof FinalAuditPayload];
+    const data = payload[cat as keyof FinalAuditPayload] as CategoryPayload | undefined;
     if (!data) return [];
 
     const score = normalizeScore(data.score, 50);

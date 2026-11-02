@@ -48,6 +48,9 @@ export interface FinalAuditPayload {
   testing?: CategoryPayload;
   documentation?: CategoryPayload;
   dependencies?: CategoryPayload;
+  /** 1-based #numbers from get_static_findings, judged false positives. */
+  dismissed_static?: { ref: number; reason: string }[];
+  coverage?: { checked?: string[]; not_checked?: string[] };
 }
 
 export interface CategoryPayload {
@@ -308,13 +311,16 @@ function execGetStaticFindings(ctx: ToolContext): ToolExecutionResult {
   }
   const lines: string[] = [
     `Static analyzers produced ${ctx.staticFindings.length} finding(s). Build on these; do not duplicate.`,
+    'They are pattern matches and can be wrong. If reading the code shows one is not a real issue, ' +
+      'list its #number in finalize_audit.dismissed_static with the reason. ' +
+      'The #numbers are for that field only; readers never see them, so do not mention them in findings.',
     '',
   ];
   for (const [cat, list] of Object.entries(byCategory)) {
     lines.push(`[${cat}] ${list.length} finding(s):`);
     for (const f of list.slice(0, 15)) {
       const loc = f.file ? ` @ ${f.file}${f.line ? ':' + f.line : ''}` : '';
-      lines.push(`  - [${f.severity}] ${f.title}${loc}`);
+      lines.push(`  #${ctx.staticFindings.indexOf(f) + 1} [${f.severity}] ${f.title}${loc}`);
     }
     if (list.length > 15) lines.push(`  ... and ${list.length - 15} more`);
     lines.push('');
@@ -481,9 +487,32 @@ export function buildToolDefinitions(
           testing:       categoryPayload,
           documentation: categoryPayload,
           dependencies:  categoryPayload,
+          dismissed_static: {
+            type: 'array',
+            description:
+              'Static findings you read the code for and found are false positives (e.g. a match inside a comment, ' +
+              'a test fixture, a placeholder value). Critical findings cannot be dismissed.',
+            items: {
+              type: 'object',
+              properties: {
+                ref:    { type: 'integer', description: 'The #number shown by get_static_findings' },
+                reason: { type: 'string', description: 'One sentence: why it is not a real issue' },
+              },
+              required: ['ref', 'reason'],
+            },
+          },
+          coverage: {
+            type: 'object',
+            description: 'What you investigated and what you did not get to, as short phrases.',
+            properties: {
+              checked:     { type: 'array', items: { type: 'string' }, description: 'e.g. "SQL in src/db.js", "auth middleware"' },
+              not_checked: { type: 'array', items: { type: 'string' }, description: 'Areas you saw but did not investigate' },
+            },
+            required: ['checked', 'not_checked'],
+          },
         },
         // Without this a model may submit one category and stop
-        required: requiredCategories,
+        required: [...requiredCategories, 'coverage'],
       },
     },
   ];

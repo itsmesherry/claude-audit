@@ -241,6 +241,22 @@ export function generateHtmlReport(report: AuditReport, outputPath: string): voi
 
   ${report.agentTrace ? renderTrace(report.agentTrace) : ''}
 
+  ${report.dismissed?.length ? `
+  <div class="card" style="margin-bottom:2rem">
+    <h2>Dismissed static findings</h2>
+    <p style="color:var(--muted)">Static matches the AI audit read the code for and judged false positives. Not counted in the scores.</p>
+    <ul>${report.dismissed.map(({ finding: f, reason }) =>
+      `<li><strong>${esc(f.title)}</strong>${f.file ? ` <code>${esc(f.line ? `${f.file}:${f.line}` : f.file)}</code>` : ''}: ${esc(reason)}</li>`).join('')}</ul>
+  </div>` : ''}
+
+  ${report.coverage ? `
+  <div class="card" style="margin-bottom:2rem">
+    <h2>Coverage</h2>
+    ${([['Checked', report.coverage.checked], ['Not checked', report.coverage.notChecked]] as const)
+      .filter(([, items]) => items.length > 0)
+      .map(([label, items]) => `<h3>${label}</h3><ul>${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
+  </div>` : ''}
+
   <div class="section-title">Categories</div>
   <div class="categories">
     ${categoryCards}

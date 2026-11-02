@@ -4,7 +4,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { scoreToGrade } from '../../core/types';
-import type { ScannedFile, ProjectInfo, Finding, CategoryScore, AuditCategory, AgentTrace } from '../../core/types';
+import type { ScannedFile, ProjectInfo, Finding, CategoryScore, AuditCategory, AgentTrace, AuditCoverage, DismissedFinding } from '../../core/types';
 import { runAgentLoop, buildInitialUserPrompt, type AgentLoopHooks } from './agent-loop';
 import type { ToolContext } from './tools';
 import { normalizeFindings, normalizeScore } from './normalize';
@@ -210,6 +210,8 @@ export interface AgenticAnalysisResult {
   trace: AgentTrace;
   /** False when Claude never submitted an audit; categories are then placeholders. */
   finalized: boolean;
+  dismissed: DismissedFinding[];
+  coverage?: AuditCoverage;
 }
 
 export async function analyzeWithClaudeAgent(

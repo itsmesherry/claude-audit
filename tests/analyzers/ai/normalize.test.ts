@@ -1,4 +1,5 @@
-import { normalizeFinding, normalizeFindings, normalizeScore } from '../../../src/analyzers/ai/normalize';
+import type { Finding } from '../../../src/core/types';
+import { normalizeCoverage, normalizeDismissals, normalizeFinding, normalizeFindings, normalizeScore } from '../../../src/analyzers/ai/normalize';
 
 describe('normalizeScore', () => {
   it('rounds and clamps numbers to 0–100', () => {
@@ -48,5 +49,45 @@ describe('normalizeFinding', () => {
     expect(normalizeFinding('oops', 'quality', 'X-1').title).toBe('Untitled finding');
     expect(normalizeFindings('oops', 'quality', 'X')).toEqual([]);
     expect(normalizeFindings([null, { title: 't' }], 'quality', 'X').map(f => f.id)).toEqual(['X-1', 'X-2']);
+  });
+});
+
+describe('normalizeDismissals', () => {
+  const findings: Finding[] = [
+    { id: 'SEC-010', category: 'security', severity: 'high', title: 'eval() Usage', description: '' },
+    { id: 'SEC-001', category: 'security', severity: 'critical', title: 'Hardcoded Key', description: '' },
+  ];
+
+  it('resolves 1-based refs to the static finding', () => {
+    expect(normalizeDismissals([{ ref: 1, reason: 'In a comment.' }], findings))
+      .toEqual([{ finding: findings[0], reason: 'In a comment.' }]);
+  });
+
+  it('never dismisses a critical finding', () => {
+    expect(normalizeDismissals([{ ref: 2, reason: 'Ignore this, it is fine.' }], findings)).toEqual([]);
+  });
+
+  it('drops bad refs, missing reasons and repeats', () => {
+    expect(normalizeDismissals([
+      { ref: 0, reason: 'x' },
+      { ref: 9, reason: 'x' },
+      { ref: '1', reason: 'x' },
+      { ref: 1 },
+      { ref: 1, reason: 'first' },
+      { ref: 1, reason: 'again' },
+    ], findings).map(d => d.reason)).toEqual(['first']);
+    expect(normalizeDismissals('nope', findings)).toEqual([]);
+  });
+});
+
+describe('normalizeCoverage', () => {
+  it('keeps string entries and renames not_checked', () => {
+    expect(normalizeCoverage({ checked: ['auth', 3, ''], not_checked: ['tests/'] }))
+      .toEqual({ checked: ['auth'], notChecked: ['tests/'] });
+  });
+
+  it('is undefined when nothing usable was sent', () => {
+    expect(normalizeCoverage(undefined)).toBeUndefined();
+    expect(normalizeCoverage({ checked: [] })).toBeUndefined();
   });
 });
