@@ -156,9 +156,9 @@ As a GitHub Action:
     fail-on-critical: true
 ```
 
-The action sets the outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings`, `report-json` and `report-sarif`, and adds a summary table to the workflow run.
+The action sets the outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings`, `report-json` and `report-sarif`, and adds a summary table to the workflow run. `@v0` follows the latest 0.x release; pin a full version such as `@v0.5.0` if you prefer.
 
-To see findings as code-scanning alerts and inline on pull requests, set `upload-sarif: true` and give the job `permissions: security-events: write`. Code scanning on a private repository needs GitHub Advanced Security. Findings without a file, such as "no tests found", stay in the other reports only. `@v0` follows the latest 0.x release; pin a full version such as `@v0.4.0` if you prefer.
+To see findings as code-scanning alerts and inline on pull requests, set `upload-sarif: true` and give the job `permissions: security-events: write`. Code scanning on a private repository needs GitHub Advanced Security. Findings without a file, such as "no tests found", stay in the other reports only.
 
 Or call the CLI yourself:
 
