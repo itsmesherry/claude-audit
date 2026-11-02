@@ -384,6 +384,8 @@ export function buildToolDefinitions(
       line:        { type: 'number', description: 'Line number in file, if applicable' },
       snippet:     { type: 'string', description: 'Relevant code snippet (<200 chars)' },
       fix:         { type: 'string', description: 'Concrete, actionable fix (preferably with a code example)' },
+      cwe:         { type: 'string', description: 'CWE id for security weaknesses, e.g. "CWE-89". Omit when none fits.' },
+      confidence:  { type: 'string', enum: ['high', 'medium', 'low'], description: 'high = you read code that proves it; low = plausible but unconfirmed' },
     },
     required: ['severity', 'title', 'description'],
   };

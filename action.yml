@@ -22,7 +22,7 @@ inputs:
     required: false
     default: 'claude-sonnet-5-5'
   output:
-    description: 'Output formats (terminal,markdown,html,json)'
+    description: 'Output formats (terminal,markdown,html,json,sarif)'
     required: false
     default: 'json,markdown'
   max-files:
@@ -41,6 +41,10 @@ inputs:
     description: 'Fail the action if critical issues are found'
     required: false
     default: 'true'
+  upload-sarif:
+    description: 'Upload findings to GitHub code scanning (needs the security-events: write permission)'
+    required: false
+    default: 'false'
 
 outputs:
   score:
@@ -61,6 +65,9 @@ outputs:
   report-json:
     description: 'Path to JSON report file'
     value: ${{ steps.audit.outputs.report-json }}
+  report-sarif:
+    description: 'Path to the SARIF report file, when one was written'
+    value: ${{ steps.audit.outputs.report-sarif }}
 
 runs:
   using: 'composite'
@@ -84,6 +91,7 @@ runs:
         INPUT_MAX_FILE_SIZE: ${{ inputs.max-file-size }}
         INPUT_STATIC: ${{ inputs.static }}
         INPUT_FAIL_ON_CRITICAL: ${{ inputs.fail-on-critical }}
+        INPUT_UPLOAD_SARIF: ${{ inputs.upload-sarif }}
         REPORT_DIR: ${{ runner.temp }}/claude-audit
       run: |
         # The outputs below are read from the JSON report, so always write one
@@ -91,6 +99,12 @@ runs:
           *,json,*) ;;
           *) INPUT_OUTPUT="$INPUT_OUTPUT,json" ;;
         esac
+        if [ "$INPUT_UPLOAD_SARIF" = "true" ]; then
+          case ",$INPUT_OUTPUT," in
+            *,sarif,*) ;;
+            *) INPUT_OUTPUT="$INPUT_OUTPUT,sarif" ;;
+          esac
+        fi
 
         ARGS=("$INPUT_PATH" --quiet --output "$INPUT_OUTPUT" --output-dir "$REPORT_DIR"
           --model "$INPUT_MODEL" --max-files "$INPUT_MAX_FILES" --max-file-size "$INPUT_MAX_FILE_SIZE")
@@ -122,6 +136,8 @@ runs:
             "total-findings": r.allFindings.length,
             "report-json": process.env.REPORT,
           };
+          const sarif = process.env.REPORT.replace(/\.json$/, ".sarif");
+          if (fs.existsSync(sarif)) outputs["report-sarif"] = sarif;
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
             Object.entries(outputs).map(([k, v]) => `${k}=${v}\n`).join(""));
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
@@ -145,3 +161,11 @@ runs:
           echo "::error::Claude Audit found critical issues. Failing the action."
           exit 1
         fi
+
+    - name: Upload to code scanning
+      # Runs after a fail-on-critical failure too: those are the findings to upload
+      if: ${{ !cancelled() && inputs.upload-sarif == 'true' && steps.audit.outputs.report-sarif != '' }}
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: ${{ steps.audit.outputs.report-sarif }}
+        category: claude-audit

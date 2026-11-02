@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 
 import { scoreToGrade } from './types';
-import type { AuditReport, CategoryScore, AuditOptions, Finding, AuditCategory, AgentTrace, AuditCoverage, DismissedFinding } from './types';
+import type { AuditReport, CategoryScore, AuditOptions, Finding, AuditCategory, AgentTrace, AuditCoverage, DismissedFinding, Severity } from './types';
 import { scanProject } from './scanner';
 import { analyzeSecrets } from '../analyzers/static/secrets';
 import { analyzeDependencies } from '../analyzers/static/dependencies';
@@ -19,13 +19,24 @@ export interface AuditHooks {
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require('../../package.json');
 
+const SEVERITY_RANK: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
+
+// The AI audit reported the same weakness at the same line. Only when it rates
+// it at least as severe, so a steered model cannot downgrade a static critical.
+function reportedByAi(f: Finding, aiFindings: Finding[]): boolean {
+  return !!f.cwe && !!f.file && !!f.line && aiFindings.some(a =>
+    a.cwe === f.cwe && a.file === f.file && a.line === f.line && SEVERITY_RANK[a.severity] >= SEVERITY_RANK[f.severity]);
+}
+
 function mergeStaticIntoCategories(
   categories: CategoryScore[],
   staticFindings: Finding[],
 ): CategoryScore[] {
   const categoryMap = new Map(categories.map(c => [c.category, c]));
+  const aiFindings = categories.flatMap(c => c.findings);
 
   for (const finding of staticFindings) {
+    if (reportedByAi(finding, aiFindings)) continue;
     const cat = categoryMap.get(finding.category);
     if (cat) {
       cat.findings.push(finding);

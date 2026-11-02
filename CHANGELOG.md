@@ -14,6 +14,14 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   are left out of the scores and counts, and every report lists them with the
   reason. Critical findings cannot be dismissed, so a repository cannot talk the
   model out of failing a CI run.
+- SARIF output (`--output sarif`, written to `.claude-audit/audit-report.sarif`)
+  for GitHub code scanning. The GitHub Action uploads it when `upload-sarif` is
+  `true`, and sets a `report-sarif` output.
+- Findings carry a CWE id where one applies: the static security rules have
+  one, and the AI audit can give one. AI findings also say how confident the
+  model is. Both show in every report.
+- A static finding that the AI audit reports again, at the same line with the
+  same CWE and at least the same severity, is shown once, as the AI finding.
 - The agentic audit reports its coverage: the areas it checked and the ones it
   did not get to. It appears in the reports and as `coverage` in the JSON.
 

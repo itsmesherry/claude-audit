@@ -55,6 +55,7 @@ export function generateHtmlReport(report: AuditReport, outputPath: string): voi
         <div class="finding-header">
           <span class="sev-badge" style="background:${severityColor(f.severity)}">${esc(f.severity.toUpperCase())}</span>
           <strong>${esc(f.title)}</strong>
+          ${[f.cwe, f.confidence && `${f.confidence} confidence`].filter(Boolean).map(t => `<span style="color:var(--muted);font-size:0.8rem">${esc(t)}</span>`).join(' ')}
         </div>
         <p class="finding-desc">${esc(f.description)}</p>
         ${f.file ? `<div class="finding-file"><code>${esc(f.file)}${f.line ? ':' + esc(f.line) : ''}</code></div>` : ''}

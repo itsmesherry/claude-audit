@@ -52,6 +52,15 @@ describe('normalizeFinding', () => {
   });
 });
 
+describe('normalizeFinding cwe and confidence', () => {
+  it('keeps a well-formed CWE and a known confidence, drops the rest', () => {
+    const ok = normalizeFinding({ cwe: ' cwe-89 ', confidence: 'High' }, 'security', 'X-1');
+    expect([ok.cwe, ok.confidence]).toEqual(['CWE-89', 'high']);
+    const bad = normalizeFinding({ cwe: 'SQL injection', confidence: 'certain' }, 'security', 'X-1');
+    expect([bad.cwe, bad.confidence]).toEqual([undefined, undefined]);
+  });
+});
+
 describe('normalizeDismissals', () => {
   const findings: Finding[] = [
     { id: 'SEC-010', category: 'security', severity: 'high', title: 'eval() Usage', description: '' },

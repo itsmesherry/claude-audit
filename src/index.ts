@@ -14,13 +14,14 @@ import { printReport } from './reporters/terminal';
 import { generateMarkdownReport } from './reporters/markdown';
 import { generateHtmlReport } from './reporters/html';
 import { generateJsonReport } from './reporters/json';
+import { generateSarifReport } from './reporters/sarif';
 import { AgentLogger } from './reporters/agent-log';
 import type { AuditOptions } from './core/types';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require('../package.json');
 
-const VALID_OUTPUTS: string[] = ['terminal', 'markdown', 'html', 'json'];
+const VALID_OUTPUTS: string[] = ['terminal', 'markdown', 'html', 'json', 'sarif'];
 const VALID_CATEGORIES: string[] = ['security', 'quality', 'performance', 'architecture', 'dependencies', 'testing', 'documentation'];
 
 async function main(): Promise<void> {
@@ -32,7 +33,7 @@ async function main(): Promise<void> {
     .version(VERSION, '-v, --version')
     .argument('[path]', 'Path to the project to audit', '.')
     .option('-k, --api-key <key>', 'Anthropic API key (or set ANTHROPIC_API_KEY env var)')
-    .option('-o, --output <formats>', 'Output formats: terminal,markdown,html,json (comma-separated)', 'terminal,markdown,html')
+    .option('-o, --output <formats>', 'Output formats: terminal,markdown,html,json,sarif (comma-separated)', 'terminal,markdown,html')
     .option('-c, --categories <cats>', 'Audit only specific categories (security,quality,performance,architecture,dependencies,testing,documentation)')
     .option('-m, --model <model>', 'Claude model to use', 'claude-sonnet-5-5')
     .option('--max-files <n>', 'Maximum files to scan', '500')
@@ -235,6 +236,14 @@ Examples:
         if (!options.quiet) {
           console.log(chalk.gray(`  wrote ${shown(jsonPath)}`));
         }
+      }
+    }
+
+    if (outputFormats.includes('sarif') && !opts['json']) {
+      const sarifPath = path.join(reportDir, 'audit-report.sarif');
+      generateSarifReport(report, sarifPath);
+      if (!options.quiet) {
+        console.log(chalk.gray(`  wrote ${shown(sarifPath)}`));
       }
     }
 

@@ -23,6 +23,10 @@ export interface Finding {
   line?: number;
   snippet?: string;
   fix?: string;
+  /** e.g. "CWE-89" */
+  cwe?: string;
+  /** How sure the AI audit is that the issue is real. Static findings leave it out. */
+  confidence?: 'high' | 'medium' | 'low';
   references?: string[];
 }
 
@@ -136,7 +140,7 @@ export interface AuditReport {
 export interface AuditOptions {
   path: string;
   apiKey?: string;
-  output: ('terminal' | 'markdown' | 'html' | 'json')[];
+  output: ('terminal' | 'markdown' | 'html' | 'json' | 'sarif')[];
   categories?: AuditCategory[];
   maxFileSize: number;    // KB
   maxFiles: number;

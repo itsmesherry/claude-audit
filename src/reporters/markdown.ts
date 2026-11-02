@@ -56,7 +56,8 @@ export function generateMarkdownReport(report: AuditReport, outputPath: string):
       const location = f.file ? ` · \`${f.line ? `${f.file}:${f.line}` : f.file}\`` : '';
       lines.push(`### ${title(severity)}: ${f.title}`);
       lines.push('');
-      lines.push(`${title(f.category)}${location}`);
+      const tags = [f.cwe, f.confidence && `${f.confidence} confidence`].filter(Boolean).map(t => ` · ${t}`).join('');
+      lines.push(`${title(f.category)}${location}${tags}`);
       lines.push('');
       // Static secret findings carry a description that only repeats the title
       if (f.description && f.description !== `Potential ${f.title} found in source code.`) {

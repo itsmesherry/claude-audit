@@ -108,7 +108,7 @@ Usage: claude-audit [options] [path]
   --static                  Static analysis only
   --fast                    One-shot AI mode instead of the agentic audit
   -c, --categories <list>   Only these categories, comma-separated
-  -o, --output <formats>    terminal, markdown, html, json (default: "terminal,markdown,html")
+  -o, --output <formats>    terminal, markdown, html, json, sarif (default: "terminal,markdown,html")
   --output-dir <dir>        Where report files go (default: .claude-audit/)
   --json                    Print the JSON report to stdout and nothing else
   --max-files <n>           Maximum files to scan (default: 500)
@@ -156,7 +156,9 @@ As a GitHub Action:
     fail-on-critical: true
 ```
 
-The action sets the outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings` and `report-json`, and adds a summary table to the workflow run. `@v0` follows the latest 0.x release; pin a full version such as `@v0.4.0` if you prefer.
+The action sets the outputs `score`, `grade`, `critical-count`, `high-count`, `total-findings`, `report-json` and `report-sarif`, and adds a summary table to the workflow run.
+
+To see findings as code-scanning alerts and inline on pull requests, set `upload-sarif: true` and give the job `permissions: security-events: write`. Code scanning on a private repository needs GitHub Advanced Security. Findings without a file, such as "no tests found", stay in the other reports only. `@v0` follows the latest 0.x release; pin a full version such as `@v0.4.0` if you prefer.
 
 Or call the CLI yourself:
 
