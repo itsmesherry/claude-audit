@@ -98,6 +98,18 @@ export interface AgentTrace {
   calls: ToolCallRecord[];
 }
 
+/** A static finding the AI audit read the code for and judged a false positive. */
+export interface DismissedFinding {
+  finding: Finding;
+  reason: string;
+}
+
+/** What the agent says it investigated, so a clean report can be read for what it covers. */
+export interface AuditCoverage {
+  checked: string[];
+  notChecked: string[];
+}
+
 export interface AuditReport {
   version: string;
   timestamp: string;
@@ -113,6 +125,9 @@ export interface AuditReport {
   aiPowered: boolean;
   agentic?: boolean;       // true when agentic loop was used
   agentTrace?: AgentTrace; // present when agentic mode ran
+  /** Static findings the agentic audit dismissed; left out of scores and counts. */
+  dismissed?: DismissedFinding[];
+  coverage?: AuditCoverage;
   /** Things the reader must know to trust the report, e.g. the AI step failed. */
   warnings?: string[];
   durationMs: number;

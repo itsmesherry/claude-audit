@@ -76,6 +76,30 @@ export function generateMarkdownReport(report: AuditReport, outputPath: string):
     }
   }
 
+  if (report.dismissed?.length) {
+    lines.push('## Dismissed static findings');
+    lines.push('');
+    lines.push('Static matches the AI audit read the code for and judged false positives. They are not counted in the scores.');
+    lines.push('');
+    for (const { finding: f, reason } of report.dismissed) {
+      const location = f.file ? ` · \`${f.line ? `${f.file}:${f.line}` : f.file}\`` : '';
+      lines.push(`- **${f.title}**${location}: ${reason}`);
+    }
+    lines.push('');
+  }
+
+  if (report.coverage) {
+    lines.push('## Coverage');
+    lines.push('');
+    for (const [label, items] of [['Checked', report.coverage.checked], ['Not checked', report.coverage.notChecked]] as const) {
+      if (items.length === 0) continue;
+      lines.push(`**${label}:**`);
+      lines.push('');
+      for (const item of items) lines.push(`- ${item}`);
+      lines.push('');
+    }
+  }
+
   if (report.agentTrace) {
     const s = report.agentTrace.summary;
     lines.push('## Agent run');

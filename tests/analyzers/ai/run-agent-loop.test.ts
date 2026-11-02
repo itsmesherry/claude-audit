@@ -143,6 +143,35 @@ function validFinalPayload(): FinalAuditPayload {
 describe('runAgentLoop', () => {
   beforeEach(() => resetMock());
 
+  it('returns the dismissals and coverage from finalize_audit', async () => {
+    const { ctx, tmpDir } = makeCtx();
+    ctx.staticFindings = [
+      { id: 'SEC-010', category: 'security', severity: 'high', title: 'eval() Usage', description: 'x', file: 'a.js', line: 3 },
+    ];
+    scriptResponse(buildMessage({
+      toolUses: [{
+        name: 'finalize_audit',
+        input: {
+          ...validFinalPayload(),
+          dismissed_static: [{ ref: 1, reason: 'The match is inside a comment.' }],
+          coverage: { checked: ['eval usage'], not_checked: ['tests/'] },
+        } as any,
+      }],
+    }));
+
+    const result = await runAgentLoop(
+      ctx,
+      { apiKey: 'test', model: 'claude-sonnet-4-6', maxTurns: 5, maxBudgetTokens: 500_000 },
+      {},
+      'Audit this project.',
+    );
+
+    expect(result.dismissed).toEqual([{ finding: ctx.staticFindings[0], reason: 'The match is inside a comment.' }]);
+    expect(result.coverage).toEqual({ checked: ['eval usage'], notChecked: ['tests/'] });
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it('happy path: tool_use → tool_result → finalize_audit → completed', async () => {
     const { ctx, tmpDir } = makeCtx();
 

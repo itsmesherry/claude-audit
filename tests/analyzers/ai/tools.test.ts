@@ -256,6 +256,9 @@ describe('TOOL_EXECUTORS', () => {
       expect(res.content).toContain('[security]');
       expect(res.content).toContain('[dependencies]');
       expect(res.content).toContain('eval use');
+      // #numbers index into staticFindings so finalize_audit can dismiss one
+      expect(res.content).toContain('#1 [high] eval use');
+      expect(res.content).toContain('#2 [medium] outdated');
     });
   });
 

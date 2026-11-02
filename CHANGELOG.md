@@ -7,6 +7,16 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- The agentic audit can dismiss static findings it has read the code for and
+  judged false positives, such as `eval(` inside a comment. Dismissed findings
+  are left out of the scores and counts, and every report lists them with the
+  reason. Critical findings cannot be dismissed, so a repository cannot talk the
+  model out of failing a CI run.
+- The agentic audit reports its coverage: the areas it checked and the ones it
+  did not get to. It appears in the reports and as `coverage` in the JSON.
+
 ## [0.4.0] - 2026-10-13
 
 ### Changed

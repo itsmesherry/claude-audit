@@ -91,6 +91,22 @@ export function printReport(report: AuditReport): void {
     console.log(block(cat.summary, '  ').join('\n'));
   }
 
+  // ── Dismissed static findings and coverage (agentic) ──
+  if (report.dismissed?.length) {
+    console.log();
+    console.log(`  ${amber.bold('Dismissed by the AI audit')} ${dim('(static matches it judged false positives)')}`);
+    for (const { finding: f, reason } of report.dismissed) {
+      const loc = f.file ? dim(`  ${f.line ? `${f.file}:${f.line}` : f.file}`) : '';
+      console.log(`  ${dim('·')} ${f.title}${loc}`);
+      console.log(dim(block(reason, '    ').join('\n')));
+    }
+  }
+  if (report.coverage?.notChecked.length) {
+    console.log();
+    console.log(`  ${amber.bold('Not checked')} ${dim(`(${plural(report.coverage.checked.length, 'area')} checked; full list in the report files)`)}`);
+    for (const area of report.coverage.notChecked) console.log(`  ${dim('·')} ${area}`);
+  }
+
   // ── Scores ────────────────────────────────────────────
   console.log();
   for (const cat of categories) {

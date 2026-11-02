@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 
 import { scoreToGrade } from './types';
-import type { AuditReport, CategoryScore, AuditOptions, Finding, AuditCategory, AgentTrace } from './types';
+import type { AuditReport, CategoryScore, AuditOptions, Finding, AuditCategory, AgentTrace, AuditCoverage, DismissedFinding } from './types';
 import { scanProject } from './scanner';
 import { analyzeSecrets } from '../analyzers/static/secrets';
 import { analyzeDependencies } from '../analyzers/static/dependencies';
@@ -103,6 +103,8 @@ export async function runAudit(
   let aiPowered = false;
   let agentic = false;
   let agentTrace: AgentTrace | undefined;
+  let dismissed: DismissedFinding[] = [];
+  let coverage: AuditCoverage | undefined;
   const warnings: string[] = [];
 
   if (info.filesOverLimit) {
@@ -143,7 +145,10 @@ export async function runAudit(
         agentTrace = result.trace;
 
         if (result.finalized) {
-          categories = mergeStaticIntoCategories(result.categories, allStaticFindings);
+          dismissed = result.dismissed;
+          coverage = result.coverage;
+          const dismissedSet = new Set(dismissed.map(d => d.finding));
+          categories = mergeStaticIntoCategories(result.categories, allStaticFindings.filter(f => !dismissedSet.has(f)));
           agentic = true;
           aiPowered = true;
         } else {
@@ -235,6 +240,8 @@ export async function runAudit(
     aiPowered,
     agentic: agentic || undefined,
     agentTrace,
+    dismissed: dismissed.length > 0 ? dismissed : undefined,
+    coverage,
     warnings: warnings.length > 0 ? warnings : undefined,
     durationMs: Date.now() - startTime,
   };
