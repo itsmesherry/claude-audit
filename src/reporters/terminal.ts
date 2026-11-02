@@ -142,7 +142,8 @@ export function printReport(report: AuditReport): void {
 
 function printFinding(f: Finding): void {
   const label = SEVERITY_COLOR[f.severity](` ${f.severity.toUpperCase()} `.padEnd(10));
-  const location = f.file ? dim(f.line ? `${f.file}:${f.line}` : f.file) : '';
+  const tags = [f.file && (f.line ? `${f.file}:${f.line}` : f.file), f.cwe, f.confidence && `${f.confidence} confidence`];
+  const location = dim(tags.filter(Boolean).join(' · '));
   const indent = ' '.repeat(13);
 
   console.log();

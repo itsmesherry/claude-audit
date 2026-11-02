@@ -123,6 +123,21 @@ describe('runAudit when the AI step succeeds', () => {
     expect(report.criticalCount).toBeGreaterThan(0);
   });
 
+  it.each([
+    ['critical', ['AI password finding']],
+    ['low', ['AI password finding', 'Hardcoded Secret / Password']],
+  ])('drops a static finding the AI reported at the same line and CWE only if as severe (AI: %s)', async (severity, titles) => {
+    const finding = { severity, title: 'AI password finding', description: 'd', file: 'config.js', line: 1, cwe: 'CWE-798' };
+    replies.push({
+      stop_reason: 'tool_use', usage,
+      content: [{ type: 'tool_use', id: 'tu_1', name: 'finalize_audit', input: { security: { ...security, findings: [finding] } } }],
+    });
+
+    const report = await runAudit(options(dir, { categories: ['security'] }), () => undefined);
+
+    expect(report.allFindings.map(f => f.title)).toEqual(titles);
+  });
+
   it('says which mode it is running in when there is no API key', async () => {
     const saved = process.env.ANTHROPIC_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;

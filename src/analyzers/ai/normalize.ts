@@ -9,6 +9,7 @@ import type { Finding, AuditCategory, AuditCoverage, DismissedFinding, Severity 
 import { maskSnippet, maskTokens } from '../static/secrets';
 
 const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'info'];
+const CONFIDENCES = ['high', 'medium', 'low'] as const;
 
 /** Coerce a score to an integer in 0–100, or use the fallback. */
 export function normalizeScore(score: unknown, fallback: number): number {
@@ -39,6 +40,8 @@ export function normalizeFinding(raw: unknown, category: AuditCategory, fallback
     line: typeof line === 'number' && Number.isInteger(line) && line > 0 ? line : undefined,
     snippet: typeof f['snippet'] === 'string' && f['snippet'] ? maskSnippet(f['snippet']) : undefined,
     fix: text(f['fix']),
+    cwe: typeof f['cwe'] === 'string' && /^CWE-\d+$/i.test(f['cwe'].trim()) ? f['cwe'].trim().toUpperCase() : undefined,
+    confidence: CONFIDENCES.find(c => c === String(f['confidence'] ?? '').toLowerCase()),
   };
 }
 

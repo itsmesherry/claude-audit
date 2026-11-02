@@ -10,6 +10,7 @@ interface SecretPattern {
   regex: RegExp;
   severity: Finding['severity'];
   fix: string;
+  cwe?: string;
   /** The matched line holds a credential, so every string literal on it is masked. */
   secret?: boolean;
 }
@@ -19,6 +20,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     id: 'SEC-001',
     secret: true,
     name: 'Hardcoded API Key',
+    cwe: 'CWE-798',
     regex: /(?:api[_-]?key|apikey)\s*[:=]\s*["']([A-Za-z0-9_\-]{16,})["']/gi,
     severity: 'critical',
     fix: 'Move to environment variables: process.env.API_KEY',
@@ -27,6 +29,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     id: 'SEC-003',
     secret: true,
     name: 'Anthropic / OpenAI Key Exposed',
+    cwe: 'CWE-798',
     regex: /(?:sk-[A-Za-z0-9]{32,}|sk-ant-[A-Za-z0-9\-]{30,})/g,
     severity: 'critical',
     fix: 'Revoke this key immediately and rotate. Store via: export ANTHROPIC_API_KEY=...',
@@ -35,6 +38,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     id: 'SEC-004',
     secret: true,
     name: 'AWS Access Key',
+    cwe: 'CWE-798',
     regex: /AKIA[0-9A-Z]{16}/g,
     severity: 'critical',
     fix: 'Revoke key in AWS IAM. Use IAM roles or AWS Secrets Manager instead.',
@@ -43,6 +47,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     id: 'SEC-005',
     secret: true,
     name: 'Private Key Block',
+    cwe: 'CWE-321',
     regex: /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----/g,
     severity: 'critical',
     fix: 'Never commit private keys. Add to .gitignore and rotate immediately.',
@@ -51,6 +56,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     id: 'SEC-006',
     secret: true,
     name: 'GitHub Token',
+    cwe: 'CWE-798',
     regex: /ghp_[A-Za-z0-9]{36}|ghs_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82}/g,
     severity: 'critical',
     fix: 'Revoke at github.com/settings/tokens and use GitHub Secrets for CI.',
@@ -59,6 +65,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     id: 'SEC-007',
     secret: true,
     name: 'Hardcoded JWT Secret',
+    cwe: 'CWE-798',
     regex: /jwt[_-]?secret\s*[:=]\s*["']([^"']{8,})["']/gi,
     severity: 'critical',
     fix: 'Use a randomly generated 256-bit secret stored in environment variables.',
@@ -67,6 +74,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     id: 'SEC-008',
     secret: true,
     name: 'Database Connection String with Credentials',
+    cwe: 'CWE-798',
     regex: /(?:mongodb|mysql|postgres|postgresql):\/\/[^:]+:[^@]+@/gi,
     severity: 'high',
     fix: 'Use environment variable: DATABASE_URL=... and read via process.env.DATABASE_URL',
@@ -75,6 +83,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     id: 'SEC-002',
     secret: true,
     name: 'Hardcoded Secret / Password',
+    cwe: 'CWE-798',
     regex: /(?:secret|password|passwd|pwd)\s*[:=]\s*["']([^"']{8,})["']/gi,
     severity: 'critical',
     fix: 'Use environment variables or a secrets manager (e.g. HashiCorp Vault, AWS Secrets Manager)',
@@ -82,6 +91,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: 'SEC-009',
     name: 'eval() Usage',
+    cwe: 'CWE-95',
     regex: /\beval\s*\(/g,
     severity: 'high',
     fix: 'Avoid eval(). Use JSON.parse() for JSON, or restructure to avoid dynamic code execution.',
@@ -89,6 +99,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: 'SEC-010',
     name: 'SQL String Concatenation (Injection Risk)',
+    cwe: 'CWE-89',
     regex: /(?:execute|query|cursor\.execute)\s*\(\s*(?:f["']|["'].*?\+|\`.*?\$\{)/gi,
     severity: 'high',
     fix: 'Use parameterized queries or an ORM. Never concatenate user input into SQL strings.',
@@ -96,6 +107,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: 'SEC-011',
     name: 'dangerouslySetInnerHTML (XSS Risk)',
+    cwe: 'CWE-79',
     regex: /dangerouslySetInnerHTML/g,
     severity: 'medium',
     fix: 'Sanitize content with DOMPurify before using dangerouslySetInnerHTML.',
@@ -103,6 +115,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: 'SEC-012',
     name: 'Insecure Math.random() for Security',
+    cwe: 'CWE-338',
     regex: /(?:token|secret|password|key|salt|hash|nonce|csrf|session|auth).*Math\.random\(\)|Math\.random\(\).*(?:token|secret|password|key|salt|hash|nonce|csrf|session|auth)/gi,
     severity: 'low',
     fix: 'Use crypto.randomBytes() or crypto.randomUUID() for security-sensitive randomness.',
@@ -117,6 +130,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: 'SEC-014',
     name: 'Disabled SSL/TLS Verification',
+    cwe: 'CWE-295',
     regex: /(?:verify\s*=\s*False|rejectUnauthorized:\s*false|NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*['"]0['"])/gi,
     severity: 'high',
     fix: 'Never disable SSL/TLS verification in production. Use proper certificate management.',
@@ -124,6 +138,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: 'SEC-015',
     name: 'subprocess shell=True (Command Injection)',
+    cwe: 'CWE-78',
     regex: /subprocess\.\w+\([^)]*shell\s*=\s*True/g,
     severity: 'high',
     fix: 'Use shell=False and pass arguments as a list to prevent command injection.',
@@ -219,6 +234,7 @@ export function analyzeSecrets(files: ScannedFile[]): Finding[] {
             line: lineIdx + 1,
             snippet: maskedLine.trim().slice(0, 120),
             fix: pattern.fix,
+            cwe: pattern.cwe,
           });
         }
       }
